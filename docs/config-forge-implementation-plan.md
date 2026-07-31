@@ -179,7 +179,7 @@ Expected: `src/`, `src-tauri/`, `package.json`, and `vite.config.ts` exist.
 
 ```bash
 npm install zustand zod @codemirror/state @codemirror/view \
-  @codemirror/lang-toml diff
+  @codemirror/language @codemirror/legacy-modes diff
 npm install -D vitest jsdom @testing-library/react \
   @testing-library/jest-dom @testing-library/user-event \
   @playwright/test eslint prettier

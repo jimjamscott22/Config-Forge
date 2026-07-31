@@ -1,0 +1,44 @@
+:root {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  color: #26221d;
+  background: #e9e3d8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  --ink: #26221d;
+  --ink-muted: #696157;
+  --paper: #f6f1e8;
+  --paper-deep: #e9e3d8;
+  --line: #c8bcaa;
+  --copper: #a44824;
+  --copper-bright: #d96732;
+  --green: #294e3e;
+  --shadow: rgba(47, 39, 30, 0.13);
+  --mono: "IBM Plex Mono", "Cascadia Mono", "DejaVu Sans Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--paper-deep);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
