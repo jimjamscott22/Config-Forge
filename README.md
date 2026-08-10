@@ -4,15 +4,20 @@ Config Forge is a local-first Linux desktop application for creating,
 importing, previewing, validating, translating, backing up, and safely applying
 Ghostty, Kitty, and Alacritty configurations.
 
-The current foundation includes:
+The current implementation includes:
 
 - A Tauri 2 desktop shell with a React and TypeScript frontend.
 - Strict type checking, ESLint, Prettier, Vitest, and Playwright.
 - Portable configuration and project schemas for the three v1 terminals.
 - Domain contracts for preserved document nodes, validation results, and
   recoverable application errors.
+- SQLite migrations and repositories for projects and snapshots.
+- Independently tested, structure-preserving adapters for Ghostty, Kitty, and
+  Alacritty.
 
-See `docs/config-forge-implementation-plan.md` for the complete roadmap.
+Development is paused at the verified Task 7 boundary. See
+`docs/project-status.md` for the exact implementation state and
+`docs/config-forge-implementation-plan.md` for the complete roadmap.
 
 ## Prerequisites
 
