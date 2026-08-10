@@ -1,0 +1,21 @@
+# Daily Alacritty profile
+[font]
+size = 13.0
+
+[font.normal]
+family = "JetBrains Mono"
+
+[window]
+opacity = 0.92
+padding = { x = 10, y = 10 }
+
+[colors.primary]
+foreground = "#c6d0f5"
+background = "#303446"
+
+[cursor.style]
+shape = "Block"
+blinking = "On"
+
+[custom.future]
+keep = "me"

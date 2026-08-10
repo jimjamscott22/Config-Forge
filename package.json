@@ -21,6 +21,7 @@
     "@codemirror/legacy-modes": "^6.5.3",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.1",
+    "@iarna/toml": "^2.2.5",
     "@tauri-apps/api": "^2.8.0",
     "diff": "^8.0.2",
     "react": "^19.1.1",
