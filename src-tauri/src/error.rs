@@ -14,6 +14,8 @@ pub enum AppError {
     ReadbackMismatch { path: String },
     #[error("backup of {path} failed: {reason}")]
     BackupFailed { path: String, reason: String },
+    #[error("native validation for {terminal} failed: {reason}")]
+    NativeValidationFailed { terminal: String, reason: String },
 }
 
 // Tauri serializes command errors back to the frontend; report them as a
