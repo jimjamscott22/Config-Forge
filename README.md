@@ -14,8 +14,10 @@ The current implementation includes:
 - SQLite migrations and repositories for projects and snapshots.
 - Independently tested, structure-preserving adapters for Ghostty, Kitty, and
   Alacritty.
+- A shared adapter registry and cross-terminal translation reports that
+  classify every portable field as exact, omitted, or defaulted.
 
-Development is paused at the verified Task 7 boundary. See
+Development is paused at the verified Task 8 boundary. See
 `docs/project-status.md` for the exact implementation state and
 `docs/config-forge-implementation-plan.md` for the complete roadmap.
 

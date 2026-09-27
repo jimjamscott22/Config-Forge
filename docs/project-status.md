@@ -1,13 +1,13 @@
 # Config Forge Project Status
 
-Last updated: 2026-08-09
+Last updated: 2026-09-27
 
 ## Pause Boundary
 
-Development is paused after Task 7 of
+Development is paused after Task 8 of
 `docs/config-forge-implementation-plan.md`. The last implementation milestone
-is `c7e646d` (`feat: add structure-preserving Alacritty adapter`). Task 8 has
-not started.
+is `749c2b7` (`feat: add limited cross-terminal translation`). Task 9 has not
+started.
 
 ## Completed Work
 
@@ -19,18 +19,22 @@ not started.
 | 5          | Structure-preserving Ghostty adapter                                     | `2da12d7`        |
 | 6          | Structure-preserving Kitty adapter                                       | `70df8a6`        |
 | 7          | Structure-preserving Alacritty TOML adapter                              | `c7e646d`        |
+| 8          | Adapter registration and cross-terminal translation reports              | `749c2b7`        |
 
-The three terminal adapters are independently usable and tested. Their shared
-registry wiring and cross-terminal translation reports belong to Task 8 and
-remain unimplemented. The Task 4 repositories are also not yet exposed through
-Tauri commands or managed application state; that integration belongs to later
-plan tasks.
+The three terminal adapters are registered with the shared registry and can
+translate portable fields between one another via `translateProject()`. Each
+adapter exposes `supportedSharedPaths()`, derived from its own native-key
+mapping table, so translation can classify every portable field as exact,
+omitted, or defaulted; no approximate-mapping case exists yet among these
+three terminals' overlapping fields. The Task 4 repositories are still not
+exposed through Tauri commands or managed application state; that
+integration belongs to later plan tasks.
 
 ## Verification At The Boundary
 
-The following checks passed against `c7e646d` on 2026-08-09:
+The following checks passed against `749c2b7` on 2026-09-27:
 
-- Vitest: 7 files and 35 tests passed.
+- Vitest: 8 files and 41 tests passed.
 - TypeScript: `tsc --noEmit` passed.
 - Production frontend build: Vite built 30 modules successfully.
 - ESLint: passed with zero warnings.
@@ -40,20 +44,20 @@ The following checks passed against `c7e646d` on 2026-08-09:
 - Production dependency audit: `npm audit --omit=dev` reported zero
   vulnerabilities.
 
-Browser E2E tests were not rerun for Tasks 5-7 because those milestones changed
-only pure adapter modules and fixtures. No manual UI behavior is claimed at this
-boundary.
+Browser E2E tests were not rerun for Task 8 because it changed only pure
+domain, service, and adapter modules with no UI. No manual UI behavior is
+claimed at this boundary.
 
 ## Known Dependency Advisory
 
 A full `npm audit` reports one high-severity development dependency advisory:
 `nanoid` 3.3.16 is pulled in through Vite, PostCSS, and Nano ID. Production-only
-audit remains clean. This advisory was not changed at the Task 7 boundary
-because dependency remediation is outside the adapter milestone.
+audit remains clean. This advisory was not changed at the Task 8 boundary
+because dependency remediation is outside the translation milestone.
 
 ## Next Planned Work
 
-Resume with Task 8: register the Ghostty, Kitty, and Alacritty adapters and
-implement translation reports that classify every portable field as exact,
-approximate, omitted, or defaulted. Translation must create a new destination
-project and leave the source project unchanged.
+Resume with Task 9: implement terminal and config path detection (Rust
+`detect_terminals` command and its `detectTerminals()` TypeScript wrapper),
+resolving Ghostty, Kitty, and Alacritty config paths from `XDG_CONFIG_HOME`
+and `HOME`, and locating installed binaries without invoking a shell.
