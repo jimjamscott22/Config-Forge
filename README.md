@@ -16,8 +16,11 @@ The current implementation includes:
   Alacritty.
 - A shared adapter registry and cross-terminal translation reports that
   classify every portable field as exact, omitted, or defaulted.
+- Terminal and config path detection, atomic config writes with read-back
+  verification, timestamped backups, and hybrid (internal + native) config
+  validation, exposed as Tauri commands.
 
-Development is paused at the verified Task 8 boundary. See
+Development is paused at the verified Task 11 boundary. See
 `docs/project-status.md` for the exact implementation state and
 `docs/config-forge-implementation-plan.md` for the complete roadmap.
 
