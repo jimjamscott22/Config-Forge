@@ -19,6 +19,8 @@ Development is paused at the verified Task 7 boundary. See
 `docs/project-status.md` for the exact implementation state and
 `docs/config-forge-implementation-plan.md` for the complete roadmap.
 
+![Screenshot of app](docs/img/config-forge-UI.png)
+
 ## Prerequisites
 
 - Node.js 20.19+ or 22.12+ and npm.
