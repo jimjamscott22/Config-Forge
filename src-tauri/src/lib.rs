@@ -14,7 +14,9 @@ pub fn run() {
             environment: Box::new(SystemEnvironment),
         })
         .invoke_handler(tauri::generate_handler![
-            commands::detection::detect_terminals
+            commands::detection::detect_terminals,
+            commands::backups::create_config_backup,
+            commands::files::write_file_atomically
         ])
         .run(tauri::generate_context!())
         .expect("error while running Config Forge");
