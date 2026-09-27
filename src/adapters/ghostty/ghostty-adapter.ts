@@ -1,8 +1,13 @@
 import { sharedConfigSchema } from "../../domain/shared-config";
 import type { ValidationIssue } from "../../domain/validation";
 import type { TerminalAdapter } from "../terminal-adapter";
+import { ghosttyMappings } from "./ghostty-mappings";
 import { parseGhostty } from "./ghostty-parser";
 import { writeGhostty } from "./ghostty-writer";
+
+const supportedSharedPaths = Object.values(ghosttyMappings).map(
+  (mapping) => mapping.modelPath,
+);
 
 export type GhosttyOverrides = Record<string, string[]>;
 
@@ -95,4 +100,5 @@ export const ghosttyAdapter: TerminalAdapter<GhosttyOverrides> = {
     };
   },
   createOverrides: () => ({}),
+  supportedSharedPaths: () => supportedSharedPaths,
 };

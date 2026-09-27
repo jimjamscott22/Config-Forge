@@ -45,4 +45,6 @@ export interface TerminalAdapter<TOverrides = Record<string, unknown>> {
   validateInternal(project: TerminalProject): ValidationResult;
   extractPortable(project: TerminalProject): PortableExtraction;
   createOverrides(): TOverrides;
+  /** Dot-notation `SharedConfig` leaf paths this adapter can read and write natively. */
+  supportedSharedPaths(): readonly string[];
 }

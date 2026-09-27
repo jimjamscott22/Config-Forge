@@ -1,8 +1,13 @@
 import { sharedConfigSchema } from "../../domain/shared-config";
 import type { ValidationIssue } from "../../domain/validation";
 import type { TerminalAdapter } from "../terminal-adapter";
+import { kittyMappings } from "./kitty-mappings";
 import { parseKitty } from "./kitty-parser";
 import { writeKitty } from "./kitty-writer";
+
+const supportedSharedPaths = Object.values(kittyMappings).map(
+  (mapping) => mapping.modelPath,
+);
 
 export type KittyOverrides = Record<string, string[]>;
 
@@ -94,4 +99,5 @@ export const kittyAdapter: TerminalAdapter<KittyOverrides> = {
     };
   },
   createOverrides: () => ({}),
+  supportedSharedPaths: () => supportedSharedPaths,
 };

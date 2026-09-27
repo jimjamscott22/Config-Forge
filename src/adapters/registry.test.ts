@@ -36,6 +36,7 @@ function createStubAdapter(terminal: TerminalId): TerminalAdapter {
       omitted: [],
     }),
     createOverrides: () => ({}),
+    supportedSharedPaths: () => [],
   };
 }
 

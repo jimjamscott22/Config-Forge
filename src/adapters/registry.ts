@@ -1,4 +1,7 @@
 import type { TerminalId } from "../domain/shared-config";
+import { alacrittyAdapter } from "./alacritty/alacritty-adapter";
+import { ghosttyAdapter } from "./ghostty/ghostty-adapter";
+import { kittyAdapter } from "./kitty/kitty-adapter";
 import type { TerminalAdapter } from "./terminal-adapter";
 
 const adapters = new Map<TerminalId, TerminalAdapter>();
@@ -25,3 +28,7 @@ export const adapterRegistry = {
 export function clearAdaptersForTests(): void {
   adapters.clear();
 }
+
+registerAdapter(ghosttyAdapter);
+registerAdapter(kittyAdapter);
+registerAdapter(alacrittyAdapter);

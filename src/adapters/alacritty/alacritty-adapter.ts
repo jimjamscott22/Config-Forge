@@ -5,8 +5,21 @@ import {
   parseAlacrittyDocument,
   writeAlacrittyDocument,
 } from "./alacritty-document";
+import { allAlacrittyMappings } from "./alacritty-mappings";
 
 export type AlacrittyOverrides = Record<string, string[]>;
+
+// Alacritty represents padding as one combined `window.padding` TOML table,
+// but SharedConfig models it as two independent leaf fields.
+const supportedSharedPaths = Array.from(
+  new Set(
+    allAlacrittyMappings().flatMap((mapping) =>
+      mapping.modelPath === "window.padding"
+        ? ["window.paddingX", "window.paddingY"]
+        : [mapping.modelPath],
+    ),
+  ),
+);
 
 function schemaIssues(projectShared: unknown): ValidationIssue[] {
   const result = sharedConfigSchema.safeParse(projectShared);
@@ -96,4 +109,5 @@ export const alacrittyAdapter: TerminalAdapter<AlacrittyOverrides> = {
     };
   },
   createOverrides: () => ({}),
+  supportedSharedPaths: () => supportedSharedPaths,
 };
