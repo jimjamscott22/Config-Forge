@@ -68,5 +68,5 @@ write helpers; surface failures explicitly.
 1. Inline execution
 2. No TDD
 3. No final, whole-branch review with "GPT-6 Astra". Skip the review if not necessary. I can address any bugs in it later, if necessary.
-4. This is just a personal utility app. Do not be too catious about taking small risks to improve the app. If you discover a way to make the app better or add a new feature, consult w/me and we can most likely do it.
-5. Try and be "token-efficient" if possible.
+4. This is just a personal utility app. While small risks can be taken to improve the app, ensure that regression coverage is maintained and critical settings are preserved. If you discover a way to make the app better or add a new feature, consult w/me and we can most likely do it.
+5. Try and be "token-efficient" if possible
