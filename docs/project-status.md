@@ -4,9 +4,10 @@ Last updated: 2026-09-27
 
 ## Pause Boundary
 
-Development is paused after Task 11 of
+Development is paused after Task 12 of
 `docs/config-forge-implementation-plan.md`. The last implementation milestone
-is `c974af4` (`feat: add hybrid config validation`). Task 12 has not started.
+is `2483fa1` (`feat: add project history and safe apply orchestration`).
+Task 13 has not started.
 
 ## Completed Work
 
@@ -22,53 +23,81 @@ is `c974af4` (`feat: add hybrid config validation`). Task 12 has not started.
 | 9          | Terminal and config path detection (`detect_terminals`)                  | `53c51ec`        |
 | 10         | Backups and atomic config writes                                         | `549d0ac`        |
 | 11         | Hybrid (internal + native) config validation                             | `c974af4`        |
+| 12         | Project/history/template services, safe apply orchestration, and store   | `2483fa1`        |
 
-The application now has its first real managed Tauri state (`AppState`,
-holding an injectable `Environment`) and its first Tauri commands:
-`detect_terminals`, `create_config_backup`, `write_file_atomically`, and
-`validate_candidate`. Path/binary detection, atomic writes, backups, and
-native validation are all implemented and unit-tested on the Rust side, but
-nothing in the frontend calls them yet — that wiring is part of Task 12
-(project, snapshot, template, and apply services) and the UI tasks after it.
-`validateProject()` (TypeScript) aggregates schema errors, each adapter's own
-`validateInternal()` output, target-path status, and translation-report
-warnings into one continuously-refreshable validation result; it is distinct
-from the per-adapter `validateInternal()` the future apply pipeline will call
-directly as its own step.
+Task 12 adds project creation/import/save/export services, named and automatic
+snapshots, restoration, translation with history, template instantiation and
+replacement, and a vanilla Zustand project store. Project and snapshot payloads
+validate the full document tree so comments and unsupported settings survive
+persistence and restoration. Replacement operations snapshot the current draft
+before saving. Opening or saving cannot discard edits made while awaiting I/O;
+errors remain visible and are rethrown.
+
+`applyProject` runs generate → validate-internal → validate-native → diff →
+confirm → snapshot → backup → atomic-write → verify. Validation errors block
+confirmation; warnings remain in the confirmation payload; cancellation returns
+normally; earlier failures stop later writes. New destinations skip backup and
+return a null backup record. The candidate, target, and confirmed source stay
+fixed across confirmation, and overlapping applies to the same project or path
+are rejected. Native validation uses terminal detection and the existing
+`validate_candidate` command, with injected temporary-candidate staging and
+cleanup. Read-back verification compares the actual content and byte count.
+
+Backend support adds transactional snapshot retention (all named snapshots and
+the latest 20 automatic snapshots per project), a checked atomic-write helper
+that rejects destinations changed since confirmation, and unique backup and
+temporary filenames to prevent repeated operations overwriting prior artifacts.
+The destination check happens immediately before rename; it is not a filesystem
+lock against another process editing in that interval.
+
+### Integration Boundary
+
+Task 12 is the service layer with mocked Tauri-client tests specified in the
+plan. The frontend shell does not call these services yet. Task 17 still owns
+app-data directories, database initialization, persistence/file IPC bridges,
+command registration, and desktop startup. The new `apply_config` Rust command
+is defined but not registered. The project/history/read/export client methods
+are typed IPC contracts; their Rust command implementations are deferred to
+that wiring milestone. No fallback persistence is used.
+
+For Task 17, project rows must store the complete `TerminalProject` JSON.
+Snapshot rows must store the complete `ProjectSnapshot` JSON (including its
+reason and captured project), and `create_snapshot` must call
+`SnapshotRepository::create_retained()` rather than the unretained `create()`.
+The frontend passes a retention limit of 20; the backend enforces 20. Wire
+`apply_config` to the checked write helper and provide temporary candidate
+staging/cleanup for `createNativeValidationDependency()`.
+
+Template catalog content, personal-template CRUD, and the picker remain in
+Task 16. Task 12 implements template application and replacement safety only.
 
 ## Verification At The Boundary
 
-The following checks passed against `c974af4` on 2026-09-27:
+The following checks passed for the Task 12 milestone on 2026-09-27:
 
-- Vitest: 10 files and 49 tests passed.
+- Vitest: 14 files and 85 tests passed.
 - TypeScript: `tsc --noEmit` passed.
 - Production frontend build: Vite built 30 modules successfully.
-- ESLint: passed with zero warnings.
-- Prettier: all configured files passed the formatting check.
-- Rust: `cargo fmt --check` and `cargo clippy --all-targets -D warnings` both
-  passed; 29 tests passed, including a real subprocess timeout/kill test and
-  a 64 KiB output-cap test.
+- ESLint: zero warnings; Prettier formatting check passed.
+- Rust: 32 tests passed; `cargo fmt --check` and
+  `cargo clippy --all-targets -- -D warnings` passed.
 - `git diff --check`: passed.
-- Production dependency audit: `npm audit --omit=dev` reported zero
-  vulnerabilities.
 
-Browser E2E tests were not rerun for Tasks 9-11 because they changed only
-Rust backend modules and pure TypeScript services with no UI. No manual UI
-behavior is claimed at this boundary, and the desktop shell itself
-(`npm run tauri dev`) was not launched.
+Browser E2E tests and the desktop shell were not run because this milestone
+changes services and backend helpers without changing the rendered UI. Service
+IPC behavior is covered with mocks; no live desktop persistence or apply flow
+is claimed. All filesystem tests use temporary directories, not personal
+terminal configs.
 
-## Known Dependency Advisory
+## Dependency Status
 
-A full `npm audit` reports one high-severity development dependency advisory:
-`nanoid` 3.3.16 is pulled in through Vite, PostCSS, and Nano ID. Production-only
-audit remains clean. This advisory was not changed at the Task 11 boundary
-because dependency remediation is outside these milestones.
+The Task 11 status previously recorded a Nano ID 3.3.16 advisory. Subsequent
+commit `89325d5` updated it; `npm ls nanoid` now reports 3.3.19 through
+Vite/PostCSS. Task 12 made no dependency changes. Dependency audits were not
+rerun for this milestone, so no current audit result is claimed.
 
 ## Next Planned Work
 
-Resume with Task 12: build the project, snapshot, template, and apply
-services (`src/services/project-service.ts`, `template-service.ts`,
-`apply-service.ts`, `src/state/project-store.ts`). `applyProject` must run
-generate → validate-internal → validate-native → diff → confirm → snapshot →
-backup → atomic-write → verify in that order, calling the Task 9-11 Tauri
-commands and the adapters built in Tasks 5-8.
+Resume with Task 13: build the Home Screen and Split Studio shell, consuming
+these services and the project store. Preserve the existing visual language
+unless the user approves a redesign. Do not start Task 13 without a new request.

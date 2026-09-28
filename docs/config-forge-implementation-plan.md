@@ -1694,7 +1694,7 @@ git commit -m "feat: add hybrid config validation"
   `createProject`, `importProject`, `saveProject`, `createSnapshot`,
   `restoreSnapshot`, `exportProject`, and `applyProject`.
 
-- [ ] **Step 1: Write the apply orchestration test**
+- [x] **Step 1: Write the apply orchestration test**
 
 ```ts
 test("applies in the required safety order", async () => {
@@ -1717,7 +1717,7 @@ test("applies in the required safety order", async () => {
 });
 ```
 
-- [ ] **Step 2: Define apply dependencies**
+- [x] **Step 2: Define apply dependencies**
 
 ```ts
 export interface ApplyDependencies {
@@ -1740,7 +1740,7 @@ export interface ApplyDependencies {
 }
 ```
 
-- [ ] **Step 3: Implement apply cancellation and blocking**
+- [x] **Step 3: Implement apply cancellation and blocking**
 
 `applyProject` must:
 
@@ -1750,7 +1750,7 @@ export interface ApplyDependencies {
 - Never call backup or write if diff generation fails.
 - Return backup and write receipt on success.
 
-- [ ] **Step 4: Implement smart snapshots**
+- [x] **Step 4: Implement smart snapshots**
 
 Automatic reasons:
 
@@ -1763,7 +1763,7 @@ Automatic reasons:
 
 Retain all named snapshots and the latest 20 automatic snapshots per project.
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 ```bash
 npm run test -- src/services src/state
@@ -1771,7 +1771,7 @@ npm run test -- src/services src/state
 
 Expected: pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/services src/state
