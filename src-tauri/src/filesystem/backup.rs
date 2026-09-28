@@ -22,7 +22,7 @@ fn backup_failed(path: impl AsRef<Path>, source: impl std::fmt::Display) -> AppE
 }
 
 /// Copies `target` into `backup_root` as
-/// `<backup_root>/YYYYMMDD-HHMMSS-<original-filename>.bak`, fsyncing the
+/// `<backup_root>/YYYYMMDD-HHMMSS-<uuid>-<original-filename>.bak`, fsyncing the
 /// copy before returning its path and SHA-256 hash. Callers building the
 /// full backup layout described in the roadmap
 /// (`<backup-root>/<terminal>/<project-id>/`) pass that resolved directory
@@ -41,9 +41,15 @@ pub async fn create_backup(target: &Path, backup_root: &Path) -> Result<BackupRe
         .and_then(|name| name.to_str())
         .unwrap_or("config");
     let timestamp = Utc::now().format("%Y%m%d-%H%M%S");
-    let backup_path = backup_root.join(format!("{timestamp}-{original_name}.bak"));
+    let backup_path = backup_root.join(format!(
+        "{timestamp}-{}-{original_name}.bak",
+        uuid::Uuid::new_v4()
+    ));
 
-    let mut backup_file = fs::File::create(&backup_path)
+    let mut backup_file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&backup_path)
         .await
         .map_err(|source| backup_failed(&backup_path, source))?;
     backup_file
@@ -92,6 +98,20 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(b"font-size = 13\n");
         assert_eq!(record.sha256, hex::encode(hasher.finalize()));
+    }
+
+    #[tokio::test]
+    async fn successive_backups_preserve_each_original() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("config");
+        let root = dir.path().join("backups");
+        fs::write(&target, b"first").await.unwrap();
+        let first = create_backup(&target, &root).await.unwrap();
+        fs::write(&target, b"second").await.unwrap();
+        let second = create_backup(&target, &root).await.unwrap();
+        assert_ne!(first.path, second.path);
+        assert_eq!(fs::read(first.path).await.unwrap(), b"first");
+        assert_eq!(fs::read(second.path).await.unwrap(), b"second");
     }
 
     #[tokio::test]

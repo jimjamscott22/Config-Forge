@@ -39,6 +39,28 @@ impl SnapshotRepository {
         Ok(())
     }
 
+    /// Insert and prune as one transaction; named history is never subject to retention.
+    pub async fn create_retained(&self, row: &SnapshotRow) -> Result<(), AppError> {
+        let mut transaction = self.pool.begin().await?;
+        sqlx::query(
+            "INSERT INTO snapshots (id, project_id, label, kind, payload_json, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&row.id).bind(&row.project_id).bind(&row.label).bind(&row.kind)
+        .bind(&row.payload_json).bind(&row.created_at)
+        .execute(&mut *transaction).await?;
+        sqlx::query(
+            "DELETE FROM snapshots WHERE project_id = ? AND kind = 'automatic' AND id NOT IN \
+             (SELECT id FROM snapshots WHERE project_id = ? AND kind = 'automatic' \
+              ORDER BY created_at DESC, rowid DESC LIMIT 20)",
+        )
+        .bind(&row.project_id)
+        .bind(&row.project_id)
+        .execute(&mut *transaction)
+        .await?;
+        transaction.commit().await?;
+        Ok(())
+    }
+
     pub async fn list_for_project(&self, project_id: &str) -> Result<Vec<SnapshotRow>, AppError> {
         let rows = sqlx::query_as::<_, SnapshotRow>(
             "SELECT id, project_id, label, kind, payload_json, created_at FROM snapshots \
@@ -102,6 +124,36 @@ mod tests {
             .await
             .unwrap();
         (database, project)
+    }
+
+    #[tokio::test]
+    async fn retains_twenty_automatic_snapshots_and_all_named_snapshots() {
+        let (database, project) = database_with_project().await;
+        let repository = SnapshotRepository::new(database.pool().clone());
+        let mut named = snapshot_fixture(&project.id, "named", "2026-08-09T00:00:00Z");
+        named.kind = "named".into();
+        named.label = Some("Keep forever".into());
+        repository.create_retained(&named).await.unwrap();
+        for index in 0..25 {
+            let row = snapshot_fixture(
+                &project.id,
+                &format!("auto-{index}"),
+                "2026-08-09T00:00:00Z",
+            );
+            repository.create_retained(&row).await.unwrap();
+        }
+        let rows = repository.list_for_project(&project.id).await.unwrap();
+        assert_eq!(rows.len(), 21);
+        assert!(rows.contains(&named));
+        for index in 0..5 {
+            assert!(!rows.iter().any(|row| row.id == format!("auto-{index}")));
+        }
+        let duplicate = snapshot_fixture(&project.id, "auto-24", "2026-08-09T01:00:00Z");
+        assert!(repository.create_retained(&duplicate).await.is_err());
+        assert_eq!(
+            repository.list_for_project(&project.id).await.unwrap(),
+            rows
+        );
     }
 
     #[tokio::test]

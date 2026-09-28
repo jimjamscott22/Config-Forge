@@ -53,6 +53,31 @@ pub async fn atomic_replace_with_hooks(
     candidate: &[u8],
     hooks: AtomicWriteHooks,
 ) -> Result<WriteReceipt, AppError> {
+    atomic_replace_checked(target, candidate, hooks, None).await
+}
+
+/// Reject stale confirmations rather than overwrite a destination changed outside the app.
+/// `None` means the confirmed destination did not exist.
+pub async fn atomic_replace_if_unchanged(
+    target: &Path,
+    candidate: &[u8],
+    expected: Option<&[u8]>,
+) -> Result<WriteReceipt, AppError> {
+    atomic_replace_checked(
+        target,
+        candidate,
+        AtomicWriteHooks::default(),
+        Some(expected),
+    )
+    .await
+}
+
+async fn atomic_replace_checked(
+    target: &Path,
+    candidate: &[u8],
+    hooks: AtomicWriteHooks,
+    expected: Option<Option<&[u8]>>,
+) -> Result<WriteReceipt, AppError> {
     let parent = target
         .parent()
         .ok_or_else(|| write_failed(target, "target has no parent directory"))?;
@@ -72,15 +97,19 @@ pub async fn atomic_replace_with_hooks(
     let existing_permissions = fs::metadata(target).await.ok().map(|m| m.permissions());
 
     let temp_file_name = format!(
-        ".{}.cfgforge-tmp",
+        ".{}.{}.cfgforge-tmp",
         target
             .file_name()
             .and_then(|name| name.to_str())
-            .unwrap_or("config")
+            .unwrap_or("config"),
+        uuid::Uuid::new_v4()
     );
     let temp_path = parent.join(temp_file_name);
 
-    let mut temp_file = fs::File::create(&temp_path)
+    let mut temp_file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temp_path)
         .await
         .map_err(|source| write_failed(target, source))?;
 
@@ -109,6 +138,24 @@ pub async fn atomic_replace_with_hooks(
         .map_err(|source| write_failed(target, source))?;
     drop(temp_file);
 
+    if let Some(expected) = expected {
+        let actual = match fs::read(target).await {
+            Ok(bytes) => Some(bytes),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => {
+                let _ = fs::remove_file(&temp_path).await;
+                return Err(write_failed(target, error));
+            }
+        };
+        if actual.as_deref() != expected {
+            let _ = fs::remove_file(&temp_path).await;
+            return Err(write_failed(
+                target,
+                "destination changed since confirmation",
+            ));
+        }
+    }
+
     fs::rename(&temp_path, target)
         .await
         .map_err(|source| write_failed(target, source))?;
@@ -135,6 +182,32 @@ pub async fn atomic_replace_with_hooks(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn rejects_changed_or_newly_created_destinations() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("config");
+        fs::write(&target, b"external edit").await.unwrap();
+        assert!(
+            atomic_replace_if_unchanged(&target, b"candidate", Some(b"confirmed"))
+                .await
+                .is_err()
+        );
+        assert!(atomic_replace_if_unchanged(&target, b"candidate", None)
+            .await
+            .is_err());
+        assert_eq!(fs::read(&target).await.unwrap(), b"external edit");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+        atomic_replace_if_unchanged(&target, b"candidate", Some(b"external edit"))
+            .await
+            .unwrap();
+        assert_eq!(fs::read(&target).await.unwrap(), b"candidate");
+        let new_target = dir.path().join("new-config");
+        atomic_replace_if_unchanged(&new_target, b"new", None)
+            .await
+            .unwrap();
+        assert_eq!(fs::read(&new_target).await.unwrap(), b"new");
+    }
 
     #[tokio::test]
     async fn failed_write_leaves_original_file_unchanged() {

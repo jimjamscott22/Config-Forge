@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { DocumentNode } from "./document-node";
+import { documentNodeSchema, type DocumentNode } from "./document-node";
 import { sharedConfigSchema, terminalIdSchema } from "./shared-config";
 
 export const terminalProjectSchema = z.object({
@@ -20,3 +20,8 @@ export interface TerminalProject extends TerminalProjectRecord {
   document: DocumentNode[];
   unmappedNodeIds: string[];
 }
+
+export const projectPayloadSchema = terminalProjectSchema.extend({
+  document: z.array(documentNodeSchema),
+  unmappedNodeIds: z.array(z.string()),
+});
