@@ -15,6 +15,8 @@ export const documentNodeSchema = z.discriminatedUnion("kind", [
     key: z.string(),
     value: z.string(),
     modelPath: z.string(),
+    valueStart: z.number().int().nonnegative().optional(),
+    valueEnd: z.number().int().nonnegative().optional(),
   }),
   nodeBaseSchema.extend({
     kind: z.literal("unknown-setting"),
@@ -22,7 +24,11 @@ export const documentNodeSchema = z.discriminatedUnion("kind", [
     value: z.string(),
   }),
   nodeBaseSchema.extend({ kind: z.literal("include"), target: z.string() }),
-  nodeBaseSchema.extend({ kind: z.literal("section"), name: z.string() }),
+  nodeBaseSchema.extend({
+    kind: z.literal("section"),
+    name: z.string(),
+    array: z.boolean().optional(),
+  }),
   nodeBaseSchema.extend({ kind: z.literal("malformed"), reason: z.string() }),
 ]);
 
@@ -41,6 +47,8 @@ export type DocumentNode =
       key: string;
       value: string;
       modelPath: string;
+      valueStart?: number;
+      valueEnd?: number;
     })
   | (NodeBase & {
       kind: "unknown-setting";
@@ -48,5 +56,5 @@ export type DocumentNode =
       value: string;
     })
   | (NodeBase & { kind: "include"; target: string })
-  | (NodeBase & { kind: "section"; name: string })
+  | (NodeBase & { kind: "section"; name: string; array?: boolean })
   | (NodeBase & { kind: "malformed"; reason: string });

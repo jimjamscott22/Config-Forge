@@ -14,6 +14,20 @@
   --copper-bright: #d96732;
   --green: #294e3e;
   --shadow: rgba(47, 39, 30, 0.13);
+  --bg-app: var(--paper-deep);
+  --bg-panel: var(--paper);
+  --bg-elevated: #fffaf2;
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-muted);
+  --border: var(--line);
+  --accent: var(--copper);
+  --accent-contrast: #ffffff;
+  --danger: #9b2929;
+  --warning: #855b17;
+  --success: var(--green);
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
   --mono: "IBM Plex Mono", "Cascadia Mono", "DejaVu Sans Mono", monospace;
 }
 
@@ -35,10 +49,53 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
 a {
   color: inherit;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #f2eadf;
+  --ink-muted: #c2b6a6;
+  --paper: #29251f;
+  --paper-deep: #1c1a17;
+  --line: #5e5245;
+  --copper: #f0a073;
+  --copper-bright: #e99764;
+  --green: #a9c7ad;
+  --shadow: rgba(0, 0, 0, 0.2);
+  --bg-elevated: #342e27;
+  --accent-contrast: #23190f;
+  --danger: #f2a4a4;
+  --warning: #e6c37c;
+}
+
+body {
+  color: var(--text-primary);
+}
+button,
+input,
+select,
+textarea {
+  color: inherit;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+}
+::selection {
+  color: var(--accent-contrast);
+  background: var(--accent);
 }

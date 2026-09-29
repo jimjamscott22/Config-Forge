@@ -1,5 +1,5 @@
 import { createStore } from "zustand/vanilla";
-import type { TerminalProject } from "../domain/project";
+import { projectPayloadSchema, type TerminalProject } from "../domain/project";
 import type { ProjectSnapshot } from "../domain/snapshot";
 import {
   getProject,
@@ -17,7 +17,8 @@ export interface ProjectStore {
   busy: boolean;
   error: string | null;
   refresh(): Promise<void>;
-  open(id: string): Promise<void>;
+  open(id: string, discardChanges?: boolean): Promise<void>;
+  startDraft(project: TerminalProject, replaceCurrent?: boolean): void;
   edit(project: TerminalProject): void;
   save(): Promise<void>;
 }
@@ -48,9 +49,9 @@ export function createProjectStore(client: ProjectClient = projectClient) {
         run(async () => {
           set({ projects: await listProjects(client) });
         }),
-      open: (id) =>
+      open: (id, discardChanges = false) =>
         run(async () => {
-          if (get().dirty)
+          if (get().dirty && !discardChanges)
             throw new Error(
               "Save or discard changes before opening another project.",
             );
@@ -59,13 +60,25 @@ export function createProjectStore(client: ProjectClient = projectClient) {
             getProject(id, client),
             listSnapshots(id, client),
           ]);
-          if (get().current !== previous || get().dirty) {
+          if (get().current !== previous || (get().dirty && !discardChanges)) {
             throw new Error(
               "Project changed while opening; keep or save your edits first.",
             );
           }
           set({ current, snapshots, dirty: false });
         }),
+      startDraft: (project, replaceCurrent = false) => {
+        if (get().busy)
+          throw new Error("A project operation is already running.");
+        if (get().dirty && !replaceCurrent)
+          throw new Error("Confirm replacement before starting another draft.");
+        set({
+          current: projectPayloadSchema.parse(project),
+          snapshots: [],
+          dirty: true,
+          error: null,
+        });
+      },
       edit: (project) => {
         if (!get().current || project.id !== get().current?.id)
           throw new Error("Cannot edit a different project.");

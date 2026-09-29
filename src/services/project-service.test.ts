@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { getAdapter } from "../adapters/registry";
 import { makeProjectClient } from "../test/fixtures/project-client";
 import {
+  makeProject,
   createProject,
   importProject,
   saveProject,
@@ -159,4 +160,31 @@ describe("project and history services", () => {
       exportProject(project, "/live/config", client),
     ).rejects.toThrow("Apply");
   });
+});
+
+test("Alacritty project payloads preserve source spans and array tables across draft and snapshot parsing", async () => {
+  const source =
+    '# header\n[font]\nsize = 13.0 # keep inline comment\n\n[[keyboard.bindings]]\nkey = "F1"\naction = "None"\n';
+  const project = makeProject({
+    name: "Alacritty",
+    terminal: "alacritty",
+    source,
+  });
+  const adapter = getAdapter("alacritty");
+  expect(adapter.generate(project).source).toBe(source);
+  const { client } = makeProjectClient();
+  const snapshot = await createSnapshot(
+    project,
+    { kind: "named", label: "Original" },
+    client,
+  );
+  snapshot.project.shared.font.size = 18;
+  expect(adapter.generate(snapshot.project).source).toBe(
+    source.replace("13.0", "18"),
+  );
+  expect(
+    snapshot.project.document.some(
+      (node) => node.kind === "section" && node.array,
+    ),
+  ).toBe(true);
 });

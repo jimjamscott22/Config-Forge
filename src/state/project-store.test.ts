@@ -135,3 +135,24 @@ test("edits while opening another project are preserved", async () => {
     current: { id: first.id, name: "Unsaved" },
   });
 });
+
+test("session drafts require confirmation before replacement and do not pretend to persist", () => {
+  const { client } = makeProjectClient();
+  const store = createProjectStore(client);
+  const first = makeProject({ name: "First", terminal: "ghostty" });
+  const second = makeProject({ name: "Second", terminal: "kitty" });
+  store.getState().startDraft(first);
+  expect(store.getState()).toMatchObject({
+    current: first,
+    dirty: true,
+    projects: [],
+    snapshots: [],
+  });
+  expect(() => store.getState().startDraft(second)).toThrow(
+    "Confirm replacement",
+  );
+  expect(store.getState().current).toEqual(first);
+  store.getState().startDraft(second, true);
+  expect(store.getState().current).toEqual(second);
+  expect(client.createProject).not.toHaveBeenCalled();
+});
