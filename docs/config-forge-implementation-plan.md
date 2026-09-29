@@ -1796,7 +1796,7 @@ git commit -m "feat: add project history and safe apply orchestration"
 - Consumes project store and services.
 - Produces home workflows and the main editor layout.
 
-- [ ] **Step 1: Write the home screen test**
+- [x] **Step 1: Write the home screen test**
 
 ```tsx
 test("offers equal create and import actions", () => {
@@ -1811,7 +1811,7 @@ test("offers equal create and import actions", () => {
 });
 ```
 
-- [ ] **Step 2: Implement design tokens**
+- [x] **Step 2: Implement design tokens**
 
 Create semantic tokens for:
 
@@ -1848,7 +1848,7 @@ Create semantic tokens for:
 }
 ```
 
-- [ ] **Step 3: Implement the home screen**
+- [x] **Step 3: Implement the home screen**
 
 Include:
 
@@ -1860,7 +1860,7 @@ Include:
 - Empty-state copy.
 - Keyboard-accessible cards implemented as buttons or links.
 
-- [ ] **Step 4: Implement Split Studio**
+- [x] **Step 4: Implement Split Studio**
 
 Desktop layout:
 
@@ -1878,7 +1878,7 @@ Sticky action bar
 
 Do not require horizontal scrolling at 320 CSS pixels.
 
-- [ ] **Step 5: Run component tests**
+- [x] **Step 5: Run component tests**
 
 ```bash
 npm run test -- src/components/layout
@@ -1887,7 +1887,7 @@ npm run typecheck
 
 Expected: pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/app src/components/layout src/styles
