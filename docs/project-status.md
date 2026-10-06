@@ -1,13 +1,13 @@
 # Config Forge Project Status
 
-Last updated: 2026-09-29
+Last updated: 2026-10-06
 
-## Pause Boundary
+## Current Scope
 
-Development is paused after Task 13 of
-`docs/config-forge-implementation-plan.md`. The last implementation milestone
-is `ba9d0c7` (`feat: build Config Forge home and studio shell`).
-Task 14 has not started.
+Tasks 1–13 of `docs/config-forge-implementation-plan.md` are complete. The last
+implementation milestone is `ba9d0c7` (`feat: build Config Forge home and studio
+shell`). On 2026-10-06, documentation reconciliation and continuation with
+Task 14 were authorized. Task 14 is in progress; Tasks 15–19 remain pending.
 
 ## Completed Work
 
@@ -137,10 +137,36 @@ rerun for this milestone, so no current audit result is claimed. Vite still
 emits upstream `@iarna/toml` warnings about its unused Node stream entry point
 and optional `eval` inspection code; the production browser smoke passed.
 
+## Remaining MVP Work
+
+- Task 14: shared-model visual controls and mock terminal preview (in progress).
+- Task 15: editable source/reconciliation, reviewed diffs, grouped diagnostics,
+  and unmapped settings.
+- Task 16: built-in catalog, picker, personal-template CRUD, and JSON bundles.
+- Task 17: app-data/database startup and migrations, IPC implementations and
+  registration, native candidate staging/cleanup, and persistent workflows.
+  Include Save/reopen, Apply, export, translation/report, and history/restore UI.
+- Task 18: complete workflow and safe-apply integration coverage.
+- Task 19: CI, operator/contributor/recovery documentation, verified Linux
+  packages, and clean-account release smoke tests.
+
+The AppImage/Debian bundle targets already exist, but package builds and
+packaged workflows have not been verified. Existing Playwright tests cover
+session draft/import flows, not live desktop persistence or writes.
+
+## Assessment Verification (2026-10-06)
+
+Fresh checks passed: 101 Vitest tests in 17 files, 32 Rust tests, 12
+Playwright desktop/mobile tests, production frontend build (including TypeScript
+checking), ESLint, Prettier, rustfmt, and Clippy with warnings denied. The build
+still reports upstream `@iarna/toml` stream/eval warnings. Native desktop launch,
+live persistence/apply, dependency audits, and release package builds were not
+performed in this assessment.
+
 ## Next Planned Work
 
-Resume with Task 14: build the visual appearance/font/color/behavior controls
+Continue with Task 14: build the visual appearance/font/color/behavior controls
 and mock terminal preview within the Studio slots. Preserve the established
-visual language and session-draft safety. Do not start Task 14 without a new
+visual language and session-draft safety. Task 14 is authorized; do not start Task 15 or later milestones without a new
 request. Built-in/personal templates remain Task 16, and desktop persistence,
 startup, and live apply wiring remain Task 17.

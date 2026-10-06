@@ -12,6 +12,15 @@
 
 **Tech Stack:** Tauri 2, Rust stable, React, TypeScript, Vite, Zustand, Zod, CodeMirror 6, Vitest, Testing Library, Playwright, SQLite, `sqlx`, `serde`, `thiserror`, `tempfile`, and `similar`.
 
+## Execution and Status
+
+Use `docs/project-status.md` as the source of truth for completion and
+verification evidence. Tasks 1–13 are complete; Task 14 is authorized next.
+Implement inline, without TDD or a mandatory final whole-branch agent review.
+Add regression tests after implementation and run the relevant checks. The
+historical test-first step ordering below does not override these preferences.
+Do not begin later milestones without a new request.
+
 ## Global Constraints
 
 - Target Linux desktop only for v1.
@@ -144,7 +153,7 @@ config-forge/
 **Interfaces:**
 - Produces: a launchable Tauri 2 application, `npm run test`, `npm run test:e2e`, `npm run lint`, `npm run typecheck`, and `npm run tauri dev`.
 
-- [ ] **Step 1: Install Linux build prerequisites**
+- [x] **Step 1: Install Linux build prerequisites**
 
 Run on Ubuntu or Debian:
 
@@ -164,7 +173,7 @@ sudo apt install -y \
 
 Expected: packages install successfully and return to the prompt.
 
-- [ ] **Step 2: Create the React/TypeScript Tauri project**
+- [x] **Step 2: Create the React/TypeScript Tauri project**
 
 ```bash
 npm create tauri-app@latest config-forge -- \
@@ -175,7 +184,7 @@ cd config-forge
 
 Expected: `src/`, `src-tauri/`, `package.json`, and `vite.config.ts` exist.
 
-- [ ] **Step 3: Install frontend dependencies**
+- [x] **Step 3: Install frontend dependencies**
 
 ```bash
 npm install zustand zod @codemirror/state @codemirror/view \
@@ -187,7 +196,7 @@ npm install -D vitest jsdom @testing-library/react \
 
 Expected: dependencies are added to `package.json` without audit-blocking errors.
 
-- [ ] **Step 4: Configure Vitest**
+- [x] **Step 4: Configure Vitest**
 
 Create `src/test/setup.ts`:
 
@@ -218,7 +227,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 5: Add scripts**
+- [x] **Step 5: Add scripts**
 
 Set the relevant `package.json` scripts to:
 
@@ -239,7 +248,7 @@ Set the relevant `package.json` scripts to:
 }
 ```
 
-- [ ] **Step 6: Add the smoke test**
+- [x] **Step 6: Add the smoke test**
 
 Create `src/app/App.test.tsx`:
 
@@ -268,7 +277,7 @@ export function App() {
 }
 ```
 
-- [ ] **Step 7: Run verification**
+- [x] **Step 7: Run verification**
 
 ```bash
 npm run test
@@ -279,7 +288,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 Expected: all commands exit with code 0.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add .
@@ -302,7 +311,7 @@ git commit -m "chore: scaffold Config Forge desktop app"
 **Interfaces:**
 - Produces: `SharedConfig`, `TerminalProject`, `DocumentNode`, `ValidationIssue`, `AppError`, `sharedConfigSchema`, and `terminalProjectSchema`.
 
-- [ ] **Step 1: Write failing schema tests**
+- [x] **Step 1: Write failing schema tests**
 
 Create `src/domain/shared-config.test.ts`:
 
@@ -389,7 +398,7 @@ describe("sharedConfigSchema", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests and verify failure**
+- [x] **Step 2: Run tests and verify failure**
 
 ```bash
 npm run test -- src/domain/shared-config.test.ts
@@ -397,7 +406,7 @@ npm run test -- src/domain/shared-config.test.ts
 
 Expected: failure because `shared-config.ts` does not exist.
 
-- [ ] **Step 3: Implement the shared schema**
+- [x] **Step 3: Implement the shared schema**
 
 Create `src/domain/shared-config.ts` with:
 
@@ -473,7 +482,7 @@ export const sharedConfigSchema = z.object({
 export type SharedConfig = z.infer<typeof sharedConfigSchema>;
 ```
 
-- [ ] **Step 4: Implement the remaining domain contracts**
+- [x] **Step 4: Implement the remaining domain contracts**
 
 Create `src/domain/document-node.ts`:
 
@@ -577,7 +586,7 @@ export interface TerminalProject extends TerminalProjectRecord {
 }
 ```
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 ```bash
 npm run test -- src/domain
@@ -586,7 +595,7 @@ npm run typecheck
 
 Expected: tests and type checking pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/domain
@@ -606,7 +615,7 @@ git commit -m "feat: define portable config domain model"
 - Consumes: `TerminalId`, `SharedConfig`, `TerminalProject`, `ValidationResult`.
 - Produces: `TerminalAdapter`, `ParseResult`, `GenerateResult`, `PortableExtraction`, `adapterRegistry`, and `getAdapter()`.
 
-- [ ] **Step 1: Write the failing registry test**
+- [x] **Step 1: Write the failing registry test**
 
 ```ts
 import { describe, expect, test } from "vitest";
@@ -629,7 +638,7 @@ test("throws for an unregistered adapter", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify failure**
+- [x] **Step 2: Run the test to verify failure**
 
 ```bash
 npm run test -- src/adapters/registry.test.ts
@@ -637,7 +646,7 @@ npm run test -- src/adapters/registry.test.ts
 
 Expected: module-not-found failure.
 
-- [ ] **Step 3: Implement the adapter contract**
+- [x] **Step 3: Implement the adapter contract**
 
 Create `src/adapters/terminal-adapter.ts`:
 
@@ -692,7 +701,7 @@ export interface TerminalAdapter<TOverrides = Record<string, unknown>> {
 }
 ```
 
-- [ ] **Step 4: Implement the registry**
+- [x] **Step 4: Implement the registry**
 
 Create `src/adapters/registry.ts`:
 
@@ -719,7 +728,7 @@ export function clearAdaptersForTests(): void {
 }
 ```
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 ```bash
 npm run test -- src/adapters
@@ -728,7 +737,7 @@ npm run typecheck
 
 Expected: pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/adapters
@@ -751,7 +760,7 @@ git commit -m "feat: add terminal adapter contract"
 **Interfaces:**
 - Produces: `Database::connect()`, `ProjectRepository::create()`, `get()`, `list()`, `update()`, `SnapshotRepository::create()`, `list_for_project()`, and `restore_payload()`.
 
-- [ ] **Step 1: Add Rust dependencies**
+- [x] **Step 1: Add Rust dependencies**
 
 In `src-tauri/Cargo.toml` add:
 
@@ -773,7 +782,7 @@ sha2 = "0.10"
 hex = "0.4"
 ```
 
-- [ ] **Step 2: Write the migration**
+- [x] **Step 2: Write the migration**
 
 Create `src-tauri/migrations/0001_initial.sql`:
 
@@ -830,7 +839,7 @@ CREATE TABLE preferences (
 );
 ```
 
-- [ ] **Step 3: Write the failing project repository test**
+- [x] **Step 3: Write the failing project repository test**
 
 Inside `src-tauri/src/db/projects.rs` add:
 
@@ -865,7 +874,7 @@ mod tests {
 }
 ```
 
-- [ ] **Step 4: Implement database and repository methods**
+- [x] **Step 4: Implement database and repository methods**
 
 Implement:
 
@@ -896,7 +905,7 @@ impl ProjectRepository {
 
 Use `sqlx::query_as` with bound parameters for every query.
 
-- [ ] **Step 5: Run Rust tests**
+- [x] **Step 5: Run Rust tests**
 
 ```bash
 cargo test --manifest-path src-tauri/Cargo.toml db::
@@ -904,7 +913,7 @@ cargo test --manifest-path src-tauri/Cargo.toml db::
 
 Expected: project and snapshot repository tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src-tauri
@@ -927,7 +936,7 @@ git commit -m "feat: add project and snapshot persistence"
 - Produces: `ghosttyAdapter`.
 - Must preserve comments, blank lines, unknown settings, repeated keys, and original ordering.
 
-- [ ] **Step 1: Add a representative fixture**
+- [x] **Step 1: Add a representative fixture**
 
 Create `fixtures/ghostty/representative.conf`:
 
@@ -947,7 +956,7 @@ bell-features = no-attention
 custom-future-option = keep-me
 ```
 
-- [ ] **Step 2: Write the failing preservation test**
+- [x] **Step 2: Write the failing preservation test**
 
 ```ts
 import { readFileSync } from "node:fs";
@@ -986,7 +995,7 @@ test("changes one known value without losing comments", () => {
 });
 ```
 
-- [ ] **Step 3: Implement line parsing**
+- [x] **Step 3: Implement line parsing**
 
 Implement `parseGhosttyLine(line, lineNumber)` so it returns:
 
@@ -998,7 +1007,7 @@ Implement `parseGhosttyLine(line, lineNumber)` so it returns:
 
 Use stable IDs derived from terminal, line number, and original text hash.
 
-- [ ] **Step 4: Implement mappings**
+- [x] **Step 4: Implement mappings**
 
 In `ghostty-mappings.ts`, define explicit mappings:
 
@@ -1023,7 +1032,7 @@ export const ghosttyMappings = {
 
 Each mapping must also define parse and serialize transforms where native values differ from the shared model.
 
-- [ ] **Step 5: Implement structure-preserving generation**
+- [x] **Step 5: Implement structure-preserving generation**
 
 `ghostty-writer.ts` must:
 
@@ -1033,7 +1042,7 @@ Each mapping must also define parse and serialize transforms where native values
 4. Append missing settings under `# Added by Config Forge`.
 5. Finish with exactly one newline.
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
 
 ```bash
 npm run test -- src/adapters/ghostty
@@ -1041,7 +1050,7 @@ npm run test -- src/adapters/ghostty
 
 Expected: all Ghostty fixture and round-trip tests pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/adapters/ghostty fixtures/ghostty
@@ -1064,7 +1073,7 @@ git commit -m "feat: add structure-preserving Ghostty adapter"
 - Produces: `kittyAdapter`.
 - Preserves include directives and unknown Kitty directives.
 
-- [ ] **Step 1: Add a fixture**
+- [x] **Step 1: Add a fixture**
 
 ```conf
 # Daily Kitty profile
@@ -1081,7 +1090,7 @@ map ctrl+shift+t new_tab
 future_kitty_setting keep-me
 ```
 
-- [ ] **Step 2: Write failing tests**
+- [x] **Step 2: Write failing tests**
 
 ```ts
 test("parses an include as an include node", () => {
@@ -1108,7 +1117,7 @@ test("does not flatten or remove an include during generation", () => {
 });
 ```
 
-- [ ] **Step 3: Implement Kitty parsing and mappings**
+- [x] **Step 3: Implement Kitty parsing and mappings**
 
 Map at minimum:
 
@@ -1136,7 +1145,7 @@ export const kittyMappings = {
 
 Keep `map`, `mouse_map`, `include`, and unknown directives as preserved nodes unless specifically modeled.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 npm run test -- src/adapters/kitty
@@ -1144,7 +1153,7 @@ npm run test -- src/adapters/kitty
 
 Expected: pass, including comments, includes, and unknown settings.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/adapters/kitty fixtures/kitty
@@ -1166,7 +1175,7 @@ git commit -m "feat: add structure-preserving Kitty adapter"
 - Produces: `alacrittyAdapter`.
 - Must use a TOML document-preservation strategy and retain unknown tables and comments.
 
-- [ ] **Step 1: Add the TOML editing dependency**
+- [x] **Step 1: Add the TOML editing dependency**
 
 ```bash
 npm install @iarna/toml
@@ -1174,7 +1183,7 @@ npm install @iarna/toml
 
 Also evaluate a text-preserving TOML editor. If no maintained JavaScript package preserves comments reliably, implement targeted span replacement for known scalar paths while retaining the original source text. Do not serialize the full document with `JSON.stringify` or a plain TOML serializer.
 
-- [ ] **Step 2: Add a fixture**
+- [x] **Step 2: Add a fixture**
 
 ```toml
 # Daily Alacritty profile
@@ -1200,7 +1209,7 @@ blinking = "On"
 keep = "me"
 ```
 
-- [ ] **Step 3: Write failing round-trip tests**
+- [x] **Step 3: Write failing round-trip tests**
 
 ```ts
 test("preserves comments and unknown tables", () => {
@@ -1217,7 +1226,7 @@ test("preserves comments and unknown tables", () => {
 });
 ```
 
-- [ ] **Step 4: Implement known-path spans**
+- [x] **Step 4: Implement known-path spans**
 
 Represent known TOML assignments as nodes containing:
 
@@ -1234,7 +1243,7 @@ interface TomlKnownSettingNode extends NodeBase {
 
 Generation applies replacements from highest `valueStart` to lowest to avoid invalidating later offsets. Append missing tables and values without rewriting unrelated sections.
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 ```bash
 npm run test -- src/adapters/alacritty
@@ -1242,7 +1251,7 @@ npm run test -- src/adapters/alacritty
 
 Expected: comments, formatting, and unknown tables survive tested edits.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/adapters/alacritty fixtures/alacritty package.json package-lock.json
@@ -1264,7 +1273,7 @@ git commit -m "feat: add structure-preserving Alacritty adapter"
 - Returns: `{ project, report }`.
 - Translation report classifies every portable field as exact, approximate, omitted, or defaulted.
 
-- [ ] **Step 1: Write the failing translation test**
+- [x] **Step 1: Write the failing translation test**
 
 ```ts
 test("translates portable Ghostty values into a new Kitty project", () => {
@@ -1291,7 +1300,7 @@ test("translates portable Ghostty values into a new Kitty project", () => {
 });
 ```
 
-- [ ] **Step 2: Define translation types**
+- [x] **Step 2: Define translation types**
 
 ```ts
 export type TranslationStatus =
@@ -1315,7 +1324,7 @@ export interface TranslationReport {
 }
 ```
 
-- [ ] **Step 3: Implement translation**
+- [x] **Step 3: Implement translation**
 
 The service must:
 
@@ -1329,7 +1338,7 @@ The service must:
 8. Create a fresh destination document.
 9. Leave the source project object unchanged.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 npm run test -- src/services/translation-service.test.ts
@@ -1337,7 +1346,7 @@ npm run test -- src/services/translation-service.test.ts
 
 Expected: pass for all six source/destination pairs.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/domain/translation.ts src/services/translation-service.ts \
@@ -1361,7 +1370,7 @@ git commit -m "feat: add limited cross-terminal translation"
 - Produces TypeScript function:
   `detectTerminals(): Promise<DetectedInstallation[]>`.
 
-- [ ] **Step 1: Write failing Rust path tests**
+- [x] **Step 1: Write failing Rust path tests**
 
 ```rust
 #[test]
@@ -1391,7 +1400,7 @@ fn kitty_paths_fall_back_to_home_config() {
 }
 ```
 
-- [ ] **Step 2: Implement path candidates**
+- [x] **Step 2: Implement path candidates**
 
 Define candidates for:
 
@@ -1412,7 +1421,7 @@ $HOME/.alacritty.toml
 
 Resolve duplicates and report whether each path exists, is writable, and is a symlink.
 
-- [ ] **Step 3: Detect binaries without a shell**
+- [x] **Step 3: Detect binaries without a shell**
 
 Use `std::env::split_paths(PATH)` and check executable files named:
 
@@ -1422,7 +1431,7 @@ Use `std::env::split_paths(PATH)` and check executable files named:
 
 Do not call `which` through a shell.
 
-- [ ] **Step 4: Expose the command through Tauri**
+- [x] **Step 4: Expose the command through Tauri**
 
 ```rust
 #[tauri::command]
@@ -1433,7 +1442,7 @@ pub async fn detect_terminals(
 }
 ```
 
-- [ ] **Step 5: Add the TypeScript wrapper**
+- [x] **Step 5: Add the TypeScript wrapper**
 
 ```ts
 import { invoke } from "@tauri-apps/api/core";
@@ -1446,7 +1455,7 @@ export async function detectTerminals(): Promise<
 }
 ```
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
 
 ```bash
 cargo test --manifest-path src-tauri/Cargo.toml filesystem::paths
@@ -1455,7 +1464,7 @@ npm run test -- src/services/tauri-client
 
 Expected: pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src-tauri/src/filesystem src-tauri/src/commands/detection.rs \
@@ -1480,7 +1489,7 @@ git commit -m "feat: detect terminals and config paths"
 - Produces:
   `atomic_replace(target, candidate_bytes, expected_sha256) -> WriteReceipt`.
 
-- [ ] **Step 1: Write failure-injection tests**
+- [x] **Step 1: Write failure-injection tests**
 
 ```rust
 #[tokio::test]
@@ -1519,7 +1528,7 @@ async fn successful_write_creates_a_matching_readback_hash() {
 }
 ```
 
-- [ ] **Step 2: Implement backup naming**
+- [x] **Step 2: Implement backup naming**
 
 Use:
 
@@ -1530,7 +1539,7 @@ YYYYMMDD-HHMMSS-<original-filename>.bak
 
 Write the backup first, flush it, and calculate SHA-256. Return the backup path and hash.
 
-- [ ] **Step 3: Implement atomic replacement**
+- [x] **Step 3: Implement atomic replacement**
 
 The function must:
 
@@ -1545,7 +1554,7 @@ The function must:
 9. Compare SHA-256 with candidate SHA-256.
 10. Return `READBACK_MISMATCH` on mismatch.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 cargo test --manifest-path src-tauri/Cargo.toml filesystem::
@@ -1553,7 +1562,7 @@ cargo test --manifest-path src-tauri/Cargo.toml filesystem::
 
 Expected: all backup, symlink, failure injection, and read-back tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src-tauri/src/filesystem src-tauri/src/commands
@@ -1576,7 +1585,7 @@ git commit -m "feat: add backups and atomic config writes"
 - Produces Tauri command:
   `validate_candidate(request): Result<ValidationResult, AppError>`.
 
-- [ ] **Step 1: Write internal validation tests**
+- [x] **Step 1: Write internal validation tests**
 
 ```ts
 test("blocks a project with an out-of-range opacity", () => {
@@ -1620,7 +1629,7 @@ test("warns about malformed preserved nodes", () => {
 });
 ```
 
-- [ ] **Step 2: Implement internal validation**
+- [x] **Step 2: Implement internal validation**
 
 Aggregate:
 
@@ -1633,7 +1642,7 @@ Aggregate:
 
 Sort by severity, source line, and message.
 
-- [ ] **Step 3: Define native validation command specifications**
+- [x] **Step 3: Define native validation command specifications**
 
 Use a fixed allowlist:
 
@@ -1648,7 +1657,7 @@ pub struct NativeValidatorSpec {
 
 Never accept an executable or arbitrary arguments directly from untrusted editor text. The backend selects the command based on the detected terminal and adapter-declared capability.
 
-- [ ] **Step 4: Implement process execution**
+- [x] **Step 4: Implement process execution**
 
 Requirements:
 
@@ -1660,7 +1669,7 @@ Requirements:
 - Return `NATIVE_VALIDATION_UNAVAILABLE` when no safe validator exists.
 - Return a structured validation issue for a non-zero exit.
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 ```bash
 npm run test -- src/services/validation-service.test.ts
@@ -1669,7 +1678,7 @@ cargo test --manifest-path src-tauri/Cargo.toml process::
 
 Expected: pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/services/validation-service.ts \
@@ -2278,6 +2287,17 @@ export async function loadStartupData(): Promise<StartupData> {
 ```
 
 Use a recoverable partial-startup state when detection fails but the database remains available.
+
+Complete the application workflows as part of this integration milestone:
+
+- Connect Save and reopen to persistent projects, including newly created drafts.
+- Connect Apply to native staging/cleanup, reviewed diff confirmation, snapshot,
+  backup, checked replacement, and read-back verification.
+- Provide export with an explicit destination and visible errors.
+- Provide translation into a new project with its report; keep the source intact.
+- Provide named snapshots, history browsing, and restore confirmation.
+- Preserve complete project/document JSON and use retained snapshot insertion.
+- Surface startup, migration, persistence, and file failures without fake success.
 
 - [ ] **Step 5: Run verification**
 
