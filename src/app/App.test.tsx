@@ -161,3 +161,33 @@ describe("App", () => {
     expect(store.getState().current?.terminal).toBe("kitty");
   });
 });
+
+test("visual edits update the current draft and source while preserving its document, then survive resume", async () => {
+  const { client } = makeProjectClient();
+  const store = createProjectStore(client);
+  const project = makeProject({
+    name: "Editable",
+    terminal: "ghostty",
+    source: "# keep\nfont-size = 14\nfuture-option = yes\n",
+  });
+  store.getState().startDraft(project);
+  render(<App store={store} />);
+  await userEvent.click(screen.getByRole("button", { name: "Resume draft" }));
+  fireEvent.change(screen.getByLabelText("Font size (pt)"), {
+    target: { value: "18" },
+  });
+  expect(store.getState().current?.shared.font.size).toBe(18);
+  expect(store.getState().current?.document).toEqual(project.document);
+  expect(store.getState().current?.overrides).toEqual(project.overrides);
+  expect(store.getState().dirty).toBe(true);
+  expect(screen.getByText(/font-size = 18/)).toBeVisible();
+  expect(client.saveProject).not.toHaveBeenCalled();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Config Forge home" }),
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Resume draft" }));
+  expect(screen.getByLabelText("Font size (pt)")).toHaveValue("18");
+  expect(
+    screen.getByText(/future-option = yes/, { selector: ".config-source" }),
+  ).toBeVisible();
+});

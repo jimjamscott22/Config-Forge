@@ -104,6 +104,20 @@ describe("alacrittyAdapter", () => {
     );
   });
 
+  test("resetting a setting preserves its inline comment and original line ending", () => {
+    const original =
+      '[font]\r\n  size = 13.0 # portable size\r\n[font.normal]\r\nfamily = "Mono #1" # family note\r\n[custom]\r\nkeep = true\r\n';
+    const project = makeAlacrittyProject(alacrittyAdapter.parse(original));
+    project.shared.font.size = null;
+    project.shared.font.family = null;
+    const generated = alacrittyAdapter.generate(project).source;
+    expect(generated).toBe(
+      "[font]\r\n  # portable size\r\n[font.normal]\r\n# family note\r\n[custom]\r\nkeep = true\r\n",
+    );
+    expect(alacrittyAdapter.parse(generated).shared.font.size).toBeNull();
+    expect(alacrittyAdapter.parse(generated).issues).toEqual([]);
+  });
+
   test("appends missing values to existing and new tables", () => {
     const parsed = alacrittyAdapter.parse(
       [

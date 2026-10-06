@@ -534,7 +534,15 @@ export function writeAlacrittyDocument(
     if (serialized === null) {
       const position = positions.find((candidate) => candidate.node === node);
       if (position) {
-        edits.push({ start: position.start, end: position.end, text: "" });
+        // Reset the assignment, but retain its trailing comment as its own line.
+        // valueEnd already excludes quoted hashes and the trailing whitespace.
+        const suffix = source.slice(node.valueEnd, position.end).trimStart();
+        const indentation = node.originalText.match(/^[\t ]*/)?.[0] ?? "";
+        edits.push({
+          start: position.start,
+          end: position.end,
+          text: suffix.startsWith("#") ? `${indentation}${suffix}` : "",
+        });
         changedNodeIds.push(node.id);
       }
       continue;

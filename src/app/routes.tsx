@@ -139,6 +139,16 @@ export function AppRoutes({
             void openProject(id);
           }}
           onHome={home}
+          onSharedChange={(shared) => {
+            const latest = store.getState().current;
+            if (latest?.id === current.id) {
+              store.getState().edit({
+                ...latest,
+                shared,
+                updatedAt: new Date().toISOString(),
+              });
+            }
+          }}
         />
       ) : route.page === "create" || route.page === "import" ? (
         <ProjectDraftForm

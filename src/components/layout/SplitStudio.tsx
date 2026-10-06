@@ -8,7 +8,10 @@ import {
 } from "react";
 import { getAdapter } from "../../adapters/registry";
 import type { TerminalProject } from "../../domain/project";
+import type { SharedConfig } from "../../domain/shared-config";
 import { validateProject } from "../../services/validation-service";
+import { VisualControls } from "../editor/VisualControls";
+import { TerminalPreview } from "../preview/TerminalPreview";
 
 const query = "(max-width: 960px)";
 function subscribeLayout(callback: () => void) {
@@ -30,6 +33,7 @@ export function SplitStudio({
   onHome,
   controls,
   preview,
+  onSharedChange,
 }: {
   project: TerminalProject;
   projects?: TerminalProject[];
@@ -38,6 +42,7 @@ export function SplitStudio({
   onHome(): void;
   controls?: ReactNode;
   preview?: ReactNode;
+  onSharedChange?(shared: SharedConfig): void;
 }) {
   const narrow = useSyncExternalStore(
     subscribeLayout,
@@ -57,36 +62,12 @@ export function SplitStudio({
   const validation = validateProject(project);
   const issues = [...generated.issues, ...validation.issues];
   const controlsContent = controls ?? (
-    <div className="settings-overview">
-      <p className="eyebrow">Current settings</p>
-      <h2>Config overview</h2>
-      <dl>
-        <div>
-          <dt>Terminal</dt>
-          <dd>{project.terminal}</dd>
-        </div>
-        <div>
-          <dt>Font</dt>
-          <dd>{project.shared.font.family ?? "Terminal default"}</dd>
-        </div>
-        <div>
-          <dt>Font size</dt>
-          <dd>{project.shared.font.size ?? "Terminal default"}</dd>
-        </div>
-        <div>
-          <dt>Opacity</dt>
-          <dd>{project.shared.window.opacity ?? "Terminal default"}</dd>
-        </div>
-        <div>
-          <dt>Preserved lines</dt>
-          <dd>{project.document.length}</dd>
-        </div>
-      </dl>
-      <p className="muted">
-        Visual controls are coming next. Your source and validation results are
-        ready to inspect.
-      </p>
-    </div>
+    <VisualControls
+      key={project.id}
+      project={project}
+      disabled={busy || !onSharedChange}
+      onChange={(shared) => onSharedChange?.(shared)}
+    />
   );
   function keydown(event: KeyboardEvent<HTMLButtonElement>, tab: StudioTab) {
     const index = visibleTabs.indexOf(tab);
@@ -212,16 +193,10 @@ export function SplitStudio({
             tabIndex={0}
           >
             {preview ?? (
-              <div className="workspace-placeholder">
-                <span className="preview-mark" aria-hidden="true">
-                  &gt;_
-                </span>
-                <h2>A window into your terminal.</h2>
-                <p>
-                  The visual preview is coming with the controls. Switch to
-                  Source to inspect the generated config.
-                </p>
-              </div>
+              <TerminalPreview
+                shared={project.shared}
+                terminal={project.terminal}
+              />
             )}
           </div>
           <div

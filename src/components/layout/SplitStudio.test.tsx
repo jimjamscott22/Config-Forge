@@ -46,7 +46,7 @@ test("narrow studio has four keyboard-operable tabs and preserved validation war
   expect(screen.getAllByRole("tab")).toHaveLength(4);
   await userEvent.click(screen.getByRole("tab", { name: "Controls" }));
   expect(
-    screen.getByRole("heading", { name: "Config overview" }),
+    screen.getByRole("heading", { name: "Visual settings" }),
   ).toBeVisible();
   await userEvent.keyboard("{End}");
   expect(screen.getByRole("tab", { name: /Validation/ })).toHaveFocus();
