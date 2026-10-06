@@ -20,14 +20,16 @@ The current implementation includes:
   verification, timestamped backups, and hybrid (internal + native) config
   validation, exposed as Tauri commands.
 
-The completed checkpoint is Task 13: project/history services, safe-apply
-orchestration, and the responsive Home/Studio shell are implemented. Create and
-import currently open session-only drafts; generated source and internal
-validation are available, while visual controls, preview, and working
-Save/Apply actions remain unfinished. Desktop database startup and most
-project/history/file IPC commands are scheduled for Task 17.
+The completed checkpoint is Task 14: project/history services, safe-apply
+orchestration, the responsive Home/Studio shell, visual controls, and the mock
+terminal preview are implemented. Create and import open session-only drafts;
+visual edits update generated source and internal validation. Controls show
+native mapping and portability help and protect preserved unsupported values.
+The preview is illustrative and executes no commands.
 
-Development is continuing with Task 14. See
+Save/Apply actions remain unavailable. Desktop database startup and most
+project/history/file IPC commands are scheduled for Task 17. Advanced source
+editing and review panels (Task 15) are next. See
 `docs/project-status.md` for the exact implementation state and
 `docs/config-forge-implementation-plan.md` for the complete roadmap.
 

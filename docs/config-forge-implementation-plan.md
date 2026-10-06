@@ -15,7 +15,7 @@
 ## Execution and Status
 
 Use `docs/project-status.md` as the source of truth for completion and
-verification evidence. Tasks 1–13 are complete; Task 14 is authorized next.
+verification evidence. Tasks 1–14 are complete; Task 15 is next and requires a new request.
 Implement inline, without TDD or a mandatory final whole-branch agent review.
 Add regression tests after implementation and run the relevant checks. The
 historical test-first step ordering below does not override these preferences.
@@ -1921,7 +1921,7 @@ git commit -m "feat: build Modern Forge application shell"
 - Produces controlled editors that update `SharedConfig`.
 - Produces `buildPreviewModel(sharedConfig)`.
 
-- [ ] **Step 1: Write a preview-model test**
+- [x] **Step 1: Write a preview-model test**
 
 ```ts
 test("turns shared colors and spacing into preview values", () => {
@@ -1950,7 +1950,7 @@ test("turns shared colors and spacing into preview values", () => {
 });
 ```
 
-- [ ] **Step 2: Implement field controls**
+- [x] **Step 2: Implement field controls**
 
 Each control must:
 
@@ -1962,7 +1962,7 @@ Each control must:
 - Update only its assigned shared-model path.
 - Avoid writing directly to generated source.
 
-- [ ] **Step 3: Implement the mock terminal**
+- [x] **Step 3: Implement the mock terminal**
 
 Display:
 
@@ -1978,7 +1978,7 @@ Display:
 
 Use CSS variables derived from `PreviewModel`, not arbitrary inline parsing of config source.
 
-- [ ] **Step 4: Add reduced-motion handling**
+- [x] **Step 4: Add reduced-motion handling**
 
 Blinking cursor must stop when:
 
@@ -1990,7 +1990,7 @@ Blinking cursor must stop when:
 }
 ```
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 ```bash
 npm run test -- src/components/editor src/components/preview
@@ -1998,7 +1998,7 @@ npm run test -- src/components/editor src/components/preview
 
 Expected: pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/components/editor src/components/preview
@@ -2225,6 +2225,7 @@ git commit -m "feat: add local config templates"
 
 ```rust
 pub struct AppState {
+    pub environment: Box<dyn crate::filesystem::paths::Environment>,
     pub database: Database,
     pub data_dir: PathBuf,
     pub backup_dir: PathBuf,
@@ -2257,7 +2258,10 @@ tauri::generate_handler![
     commands::projects::get_project,
     commands::projects::list_projects,
     commands::projects::save_project,
-    commands::backups::create_backup,
+    commands::projects::create_snapshot,
+    commands::projects::get_snapshot,
+    commands::projects::list_snapshots,
+    commands::backups::create_config_backup,
     commands::files::read_text_file,
     commands::files::export_config,
     commands::files::apply_config,
@@ -2547,7 +2551,7 @@ git commit -m "docs: package and document Config Forge v1"
 - [ ] Alacritty fixture round trips preserve comments and unknown tables.
 - [ ] Translation produces new projects and complete reports.
 - [ ] Direct apply cannot proceed with blocking internal errors.
-- [ ] Direct apply always creates both a snapshot and backup.
+- [ ] Direct apply always creates a snapshot and backs up existing destinations; new destinations return no backup.
 - [ ] Failure injection never damages the original config.
 - [ ] Symlink behavior is explicit and tested.
 - [ ] AppImage and Debian artifacts build successfully.
