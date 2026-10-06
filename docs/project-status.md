@@ -9,6 +9,17 @@ implementation milestone is `ff8accb` (`feat: add visual config controls and
 terminal preview`). Documentation reconciliation and Task 14 completed on
 2026-10-06. Tasks 15–19 remain pending; Task 15 is next and requires a new request.
 
+## Pause Boundary
+
+Development is paused at the user's request on 2026-10-06, after Task 14.
+Task 15 has not started. The implementation is committed in `ff8accb`, and its
+completion/verification checkpoint is recorded in `42688d8`. There is no
+unfinished implementation to resume before Task 15.
+
+When work resumes, read this document and the implementation plan, then begin
+Task 15 only after a new request. Preserve the recorded verification limits:
+native desktop persistence/apply and release package workflows remain unverified.
+
 ## Completed Work
 
 | Plan tasks | Deliverable                                                              | Milestone commit |

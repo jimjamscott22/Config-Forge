@@ -15,7 +15,9 @@
 ## Execution and Status
 
 Use `docs/project-status.md` as the source of truth for completion and
-verification evidence. Tasks 1–14 are complete; Task 15 is next and requires a new request.
+verification evidence. Tasks 1–14 are complete. Development is paused after
+Task 14 at the user's request on 2026-10-06; Task 15 has not started and requires
+a new request before resuming.
 Implement inline, without TDD or a mandatory final whole-branch agent review.
 Add regression tests after implementation and run the relevant checks. The
 historical test-first step ordering below does not override these preferences.

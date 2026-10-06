@@ -27,6 +27,9 @@ visual edits update generated source and internal validation. Controls show
 native mapping and portability help and protect preserved unsupported values.
 The preview is illustrative and executes no commands.
 
+Development is paused after Task 14 at the user's request. Task 15 has not
+started and is the next milestone when work resumes.
+
 Save/Apply actions remain unavailable. Desktop database startup and most
 project/history/file IPC commands are scheduled for Task 17. Advanced source
 editing and review panels (Task 15) are next. See
