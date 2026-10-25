@@ -149,6 +149,10 @@ export function AppRoutes({
               });
             }
           }}
+          onProjectChange={(next) => {
+            const latest = store.getState().current;
+            if (latest?.id === current.id) store.getState().edit(next);
+          }}
         />
       ) : route.page === "create" || route.page === "import" ? (
         <ProjectDraftForm

@@ -211,3 +211,130 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+.source-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+.source-editor {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  line-height: 1.7;
+  resize: vertical;
+  overflow: auto;
+}
+.source-editor[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.source-diagnostics {
+  margin-top: 16px;
+}
+.source-warning {
+  margin: 14px 0 0;
+  padding-left: 14px;
+  border-left: 3px solid var(--warning);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+.issue-info {
+  border-left-color: var(--success);
+}
+.validation-group {
+  margin-bottom: 24px;
+}
+.validation-group h3,
+.unmapped-group h3,
+.diff-viewer h3 {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+}
+.unmapped-group {
+  margin-top: 18px;
+}
+.diff-viewer {
+  margin-top: 20px;
+}
+.diff-summary,
+.diff-empty {
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+.diff-target {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 14px;
+  margin: 0 0 14px;
+  font-size: 0.78rem;
+}
+.diff-target dt {
+  color: var(--text-secondary);
+}
+.diff-target dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.diff-blocking {
+  margin-bottom: 14px;
+  padding-left: 14px;
+  border-left: 3px solid var(--danger);
+  color: var(--danger);
+  font-size: 0.8rem;
+}
+.diff-lines {
+  max-height: 320px;
+  padding: 0;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  list-style: none;
+}
+.diff-line {
+  display: flex;
+  gap: 10px;
+  padding: 1px 10px;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  line-height: 1.7;
+}
+.diff-line code {
+  min-width: 0;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.diff-added {
+  background: color-mix(in srgb, var(--success) 18%, transparent);
+}
+.diff-removed {
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+}
+.diff-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.diff-confirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  font-size: 0.82rem;
+}

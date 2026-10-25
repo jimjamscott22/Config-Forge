@@ -4,7 +4,7 @@ import { AppearanceControls } from "./AppearanceControls";
 import { BehaviorControls } from "./BehaviorControls";
 import { ColorControls } from "./ColorControls";
 import { FontControls } from "./FontControls";
-import { TerminalOverrides } from "./TerminalOverrides";
+import { UnmappedSettings } from "./UnmappedSettings";
 
 export function VisualControls({
   project,
@@ -58,7 +58,7 @@ export function VisualControls({
       </details>
       <details className="control-section">
         <summary>Preserved settings</summary>
-        <TerminalOverrides project={project} />
+        <UnmappedSettings project={project} />
       </details>
     </div>
   );

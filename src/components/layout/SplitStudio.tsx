@@ -10,8 +10,10 @@ import { getAdapter } from "../../adapters/registry";
 import type { TerminalProject } from "../../domain/project";
 import type { SharedConfig } from "../../domain/shared-config";
 import { validateProject } from "../../services/validation-service";
+import { AdvancedSource } from "../editor/AdvancedSource";
 import { VisualControls } from "../editor/VisualControls";
 import { TerminalPreview } from "../preview/TerminalPreview";
+import { ValidationPanel } from "../validation/ValidationPanel";
 
 const query = "(max-width: 960px)";
 function subscribeLayout(callback: () => void) {
@@ -34,6 +36,7 @@ export function SplitStudio({
   controls,
   preview,
   onSharedChange,
+  onProjectChange,
 }: {
   project: TerminalProject;
   projects?: TerminalProject[];
@@ -43,6 +46,7 @@ export function SplitStudio({
   controls?: ReactNode;
   preview?: ReactNode;
   onSharedChange?(shared: SharedConfig): void;
+  onProjectChange?(project: TerminalProject): void;
 }) {
   const narrow = useSyncExternalStore(
     subscribeLayout,
@@ -206,14 +210,11 @@ export function SplitStudio({
             hidden={selected !== "source"}
             tabIndex={0}
           >
-            <div className="workspace-heading">
-              <h2>Generated source</h2>
-              <span>Read only</span>
-            </div>
-            <pre className="config-source">
-              {generated.source ||
-                "# No settings yet. The terminal will use its defaults."}
-            </pre>
+            <AdvancedSource
+              project={project}
+              disabled={busy || !onProjectChange}
+              onApply={(next) => onProjectChange?.(next)}
+            />
           </div>
           <div
             role="tabpanel"
@@ -222,35 +223,7 @@ export function SplitStudio({
             hidden={selected !== "validation"}
             tabIndex={0}
           >
-            <div className="workspace-heading">
-              <h2>Validation</h2>
-              <span>
-                {issues.some((issue) => issue.severity === "error")
-                  ? "Needs attention"
-                  : "No blocking issues"}
-              </span>
-            </div>
-            {issues.length ? (
-              <ul className="validation-list">
-                {issues.map((issue, index) => (
-                  <li
-                    key={`${issue.id}-${index}`}
-                    className={`issue-${issue.severity}`}
-                  >
-                    <strong>
-                      {issue.severity}
-                      {issue.sourceLine ? ` · line ${issue.sourceLine}` : ""}
-                    </strong>
-                    <p>{issue.message}</p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="empty-state">
-                <strong>Internal checks passed.</strong>
-                <p>Native validation runs before applying a config.</p>
-              </div>
-            )}
+            <ValidationPanel issues={issues} />
           </div>
         </section>
       </div>

@@ -44,7 +44,7 @@ Full check before a milestone: format:check, lint, typecheck, test, build, cargo
 
 ## Current state (read before feature work)
 
-Tasks 1–14 of `docs/config-forge-implementation-plan.md` are done; development is **paused after Task 14** — don't start Task 15+ without a new request. Read `docs/project-status.md` and the plan first.
+Tasks 1–15 of `docs/config-forge-implementation-plan.md` are done; development is **paused after Task 15** — don't start Task 16+ without a new request. Read `docs/project-status.md` and the plan first.
 
 Important gap: `src-tauri/src/lib.rs` registers only `detect_terminals`, `create_config_backup`, `write_file_atomically`, and `validate_candidate`. The project/snapshot/`read_text_file`/`export_config`/`apply_config` commands in `ProjectClient` are typed contracts with no registered Rust implementation yet (Task 17 owns DB startup, command registration, and native candidate staging). Don't assume those IPC calls work in the desktop runtime; Save/Apply are intentionally disabled in the UI.
 

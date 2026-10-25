@@ -1,24 +1,20 @@
 # Config Forge Project Status
 
-Last updated: 2026-10-06
+Last updated: 2026-10-25
 
 ## Current Scope
 
-Tasks 1–14 of `docs/config-forge-implementation-plan.md` are complete. The last
-implementation milestone is `ff8accb` (`feat: add visual config controls and
-terminal preview`). Documentation reconciliation and Task 14 completed on
-2026-10-06. Tasks 15–19 remain pending; Task 15 is next and requires a new request.
+Tasks 1–15 of `docs/config-forge-implementation-plan.md` are complete. Task 15
+(editable source, reviewed diffs, grouped diagnostics, unmapped settings) was
+resumed on request on 2026-10-25. Tasks 16–19 remain pending; Task 16 is next
+and requires a new request.
 
 ## Pause Boundary
 
-Development is paused at the user's request on 2026-10-06, after Task 14.
-Task 15 has not started. The implementation is committed in `ff8accb`, and its
-completion/verification checkpoint is recorded in `42688d8`. There is no
-unfinished implementation to resume before Task 15.
-
-When work resumes, read this document and the implementation plan, then begin
-Task 15 only after a new request. Preserve the recorded verification limits:
-native desktop persistence/apply and release package workflows remain unverified.
+Development is paused after Task 15. Do not start Task 16 without a new
+request. When work resumes, read this document and the implementation plan.
+Preserve the recorded verification limits: native desktop persistence/apply and
+release package workflows remain unverified.
 
 ## Completed Work
 
@@ -37,6 +33,7 @@ native desktop persistence/apply and release package workflows remain unverified
 | 12         | Project/history/template services, safe apply orchestration, and store   | `2483fa1`        |
 | 13         | Home Screen, create/import drafts, and responsive Split Studio shell     | `ba9d0c7`        |
 | 14         | Shared-model visual controls and mock terminal preview                   | `ff8accb`        |
+| 15         | Editable source, diff viewer, grouped diagnostics, unmapped settings     | see git log      |
 
 Task 11 completed hybrid validation: `validateProject()` aggregates schema,
 adapter, target-path, and translation issues, while `validate_candidate` runs
@@ -112,6 +109,35 @@ when resetting a recognized setting. Terminal-specific/unmapped content is
 inspectable and remains read-only; editable source is still Task 15. Save/Apply
 and live persistence remain Task 17.
 
+### Task 15: Source Editing, Diffs, and Diagnostics
+
+The Source tab shows the generated source read-only with an **Edit source**
+action. Editing opens a plain textarea (see rulings), parses after a 400 ms
+debounce through `reconcileSourceEdit(project, source)`, and never overwrites the
+typed text after a parse error. Parse errors disable **Apply source edit** and
+show line diagnostics. Edits that introduce unknown, malformed, include, or
+otherwise unmapped lines require ticking a diff-review checkbox, as does applying
+after the visual controls changed mid-edit. Removing preserved lines is reported
+but does not require confirmation. **Revert to Generated Source** discards the
+edit. Applied edits replace the project's shared model, overrides, and document
+tree via `store.edit()`; they remain a session draft.
+
+`DiffViewer` renders added/removed/unchanged lines with an optional destination
+block (path, backup destination, symlink behaviour — the backend refuses to
+write through symlinks), blocking validation errors, and a confirmation
+checkbox. Today it only compares generated vs edited source; Task 17 can reuse
+it for live-config vs candidate with real destination data. `ValidationPanel`
+groups Errors/Warnings/Information. `UnmappedSettings` (replacing
+`TerminalOverrides`) groups Terminal-specific, Unknown, Malformed, and
+Include/directive content, plus a translation-only warning listing settings
+omitted from the portable subset.
+
+Rulings: a textarea replaces CodeMirror because `@codemirror/commands`
+(undo/keymap) is not installed, jsdom support is poor, and a native textarea is
+accessible and works at 320 px; the CodeMirror packages remain installed and can
+be swapped in later. Source-line diagnostics are listed beneath the editor, not
+inline.
+
 ### Integration Boundary
 
 Task 13 calls the draft, template, adapter, validation, and store APIs. Drafts
@@ -174,8 +200,6 @@ and optional `eval` inspection code; the production browser smoke passed.
 
 ## Remaining MVP Work
 
-- Task 15: editable source/reconciliation, reviewed diffs, grouped diagnostics,
-  and unmapped settings.
 - Task 16: built-in catalog, picker, personal-template CRUD, and JSON bundles.
 - Task 17: app-data/database startup and migrations, IPC implementations and
   registration, native candidate staging/cleanup, and persistent workflows.
@@ -212,10 +236,17 @@ performed in this assessment.
 - Native desktop launch, live persistence/apply, and package builds were not run.
   Rust is unchanged; its 32 tests, rustfmt, and Clippy passed in the assessment.
 
+## Task 15 Verification (2026-10-25)
+
+- Vitest: 23 files and 126 tests passed.
+- Playwright: 22 desktop/mobile Chromium tests passed, including a new
+  source-edit round trip.
+- Production build (including TypeScript checking), ESLint, and Prettier passed.
+- Rust is unchanged; native desktop launch, live persistence/apply, dependency
+  audits, and package builds were not run.
+
 ## Next Planned Work
 
-Task 15: implement editable source and model reconciliation, reviewed diffs,
-grouped diagnostics, and unmapped-setting panels. Preserve the Task 14 visual
-language and document/model safety. Do not start Task 15 or later milestones
-without a new request. Templates remain Task 16; desktop persistence, startup,
-and live apply remain Task 17.
+Task 16: built-in and personal templates. Desktop persistence, startup, and live
+apply remain Task 17 (including reusing `DiffViewer` for the apply review). Do
+not start Task 16 or later milestones without a new request.
