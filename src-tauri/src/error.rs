@@ -6,6 +6,8 @@ pub enum AppError {
     DatabaseMigration(#[from] sqlx::migrate::MigrateError),
     #[error("{entity} not found: {id}")]
     NotFound { entity: &'static str, id: String },
+    #[error("invalid input: {reason}")]
+    InvalidInput { reason: String },
     #[error("refusing to write through symlink: {path}")]
     TargetIsSymlink { path: String },
     #[error("atomic write to {path} failed: {reason}")]

@@ -37,6 +37,7 @@ export function SplitStudio({
   preview,
   onSharedChange,
   onProjectChange,
+  onSaveAsTemplate,
 }: {
   project: TerminalProject;
   projects?: TerminalProject[];
@@ -47,6 +48,7 @@ export function SplitStudio({
   preview?: ReactNode;
   onSharedChange?(shared: SharedConfig): void;
   onProjectChange?(project: TerminalProject): void;
+  onSaveAsTemplate?(project: TerminalProject): void;
 }) {
   const narrow = useSyncExternalStore(
     subscribeLayout,
@@ -136,6 +138,16 @@ export function SplitStudio({
                 </li>
               ))}
           </ul>
+          {onSaveAsTemplate ? (
+            <button
+              className="button"
+              type="button"
+              disabled={busy}
+              onClick={() => onSaveAsTemplate(project)}
+            >
+              Save as template
+            </button>
+          ) : null}
           <button className="button" type="button" onClick={onHome}>
             Back to workbench
           </button>

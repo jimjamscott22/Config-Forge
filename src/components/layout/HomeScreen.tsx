@@ -2,6 +2,8 @@ import type { DetectedInstallation } from "../../adapters/terminal-adapter";
 import type { TerminalProject } from "../../domain/project";
 import type { TerminalId } from "../../domain/shared-config";
 import type { ConfigTemplate } from "../../domain/template";
+import type { TemplateService } from "../../services/template-service";
+import { TemplatePicker } from "./TemplatePicker";
 
 const terminals = [
   { id: "ghostty", name: "Ghostty", format: "key/value" },
@@ -18,6 +20,7 @@ export interface HomeScreenProps {
   installations?: DetectedInstallation[];
   detectionStatus?: "unavailable" | "loading" | "ready" | "failed";
   templates?: ConfigTemplate[];
+  templateService?: TemplateService;
   busy?: boolean;
   onCreate?(terminal?: TerminalId): void;
   onImport?(): void;
@@ -32,6 +35,7 @@ export function HomeScreen({
   installations = emptyInstallations,
   detectionStatus = "unavailable",
   templates = emptyTemplates,
+  templateService,
   busy = false,
   onCreate,
   onImport,
@@ -147,35 +151,15 @@ export function HomeScreen({
           </section>
           <section className="panel" aria-labelledby="templates-title">
             <div className="panel-heading">
-              <h2 id="templates-title">Built-in templates</h2>
+              <h2 id="templates-title">Templates</h2>
               <span>Starting points</span>
             </div>
-            {templates.length ? (
-              <ul className="project-list">
-                {templates.map((template) => (
-                  <li key={template.id}>
-                    <button
-                      className="project-card"
-                      type="button"
-                      onClick={() => onTemplate?.(template)}
-                      disabled={busy}
-                    >
-                      <strong>{template.name}</strong>
-                      <span>{template.terminal}</span>
-                      <span>{template.description}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="empty-state">
-                <strong>Room for your next starting point.</strong>
-                <p>
-                  The starter collection is coming soon. For now, begin with a
-                  blank config or one of your own.
-                </p>
-              </div>
-            )}
+            <TemplatePicker
+              templates={templates}
+              service={templateService}
+              busy={busy}
+              onUse={onTemplate}
+            />
           </section>
         </div>
         <aside className="terminal-panel" aria-labelledby="terminals-title">

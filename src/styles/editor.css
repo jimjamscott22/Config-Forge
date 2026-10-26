@@ -338,3 +338,32 @@
   margin-top: 14px;
   font-size: 0.82rem;
 }
+.template-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-size: 0.8rem;
+}
+.template-item {
+  display: grid;
+  gap: 8px;
+}
+.template-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+.template-actions label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+.template-note {
+  margin: 14px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}

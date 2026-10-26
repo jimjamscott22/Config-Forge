@@ -7,6 +7,8 @@ export async function detectTerminals(): Promise<DetectedInstallation[]> {
 
 import type { TerminalProject } from "../domain/project";
 import type { ProjectSnapshot } from "../domain/snapshot";
+import type { TerminalId } from "../domain/shared-config";
+import type { ConfigTemplate } from "../domain/template";
 import type { NativeValidationRequest } from "../adapters/terminal-adapter";
 import type { ValidationResult } from "../domain/validation";
 import type { AtomicWriteRequest, BackupRequest } from "./apply-service";
@@ -53,6 +55,24 @@ export const projectClient: ProjectClient = {
   createBackup: ({ target, backupRoot }) =>
     invoke("create_config_backup", { target, backupRoot }),
   applyConfig: (request) => invoke("apply_config", { request }),
+};
+
+/** Personal templates only; built-ins live in the frontend catalog. */
+export interface TemplateClient {
+  listTemplates(terminal?: TerminalId): Promise<ConfigTemplate[]>;
+  getTemplate(id: string): Promise<ConfigTemplate | null>;
+  createTemplate(template: ConfigTemplate): Promise<void>;
+  updateTemplate(template: ConfigTemplate): Promise<void>;
+  deleteTemplate(id: string): Promise<void>;
+}
+
+// Registered with the other persistence commands in Task 17.
+export const templateClient: TemplateClient = {
+  listTemplates: (terminal) => invoke("list_templates", { terminal }),
+  getTemplate: (id) => invoke("get_template", { id }),
+  createTemplate: (template) => invoke("create_template", { template }),
+  updateTemplate: (template) => invoke("update_template", { template }),
+  deleteTemplate: (id) => invoke("delete_template", { id }),
 };
 
 export async function validateCandidate(

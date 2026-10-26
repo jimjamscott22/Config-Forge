@@ -1,6 +1,7 @@
 mod migrations;
 pub mod projects;
 pub mod snapshots;
+pub mod templates;
 
 use std::str::FromStr;
 

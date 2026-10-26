@@ -135,6 +135,20 @@ describe("App", () => {
     ).toBeEnabled();
   });
 
+  test("built-in templates are offered by default and start a draft", async () => {
+    const store = createProjectStore(makeProjectClient().client);
+    render(<App store={store} />);
+    await userEvent.click(screen.getByRole("button", { name: /^Retro Green/ }));
+    await userEvent.selectOptions(screen.getByLabelText("Terminal"), "kitty");
+    await userEvent.click(screen.getByRole("button", { name: "Open draft" }));
+    await waitFor(() =>
+      expect(store.getState().current?.shared.colors.background).toBe(
+        "#031006",
+      ),
+    );
+    expect(store.getState().current?.terminal).toBe("kitty");
+  });
+
   test("provided templates create a draft for the chosen terminal", async () => {
     const project = makeProject({
       name: "Starter",

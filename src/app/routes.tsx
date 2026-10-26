@@ -9,7 +9,9 @@ import { SplitStudio } from "../components/layout/SplitStudio";
 import type { TerminalProject } from "../domain/project";
 import type { TerminalId } from "../domain/shared-config";
 import type { ConfigTemplate } from "../domain/template";
+import type { TemplateService } from "../services/template-service";
 import { detectTerminals } from "../services/tauri-client";
+import { builtinTemplates } from "../templates/builtins";
 import { projectStore, type createProjectStore } from "../state/project-store";
 
 export type AppRoute =
@@ -20,20 +22,23 @@ export type AppRoute =
       terminal: TerminalId;
       template?: ConfigTemplate;
     };
-const emptyTemplates: ConfigTemplate[] = [];
 export interface AppRoutesProps {
   store?: ReturnType<typeof createProjectStore>;
-  templates?: ConfigTemplate[];
+  templates?: readonly ConfigTemplate[];
+  /** Enables personal templates; omitted until desktop persistence is wired. */
+  templateService?: TemplateService;
   loadInstallations?: () => Promise<DetectedInstallation[]>;
 }
 
 export function AppRoutes({
   store = projectStore,
-  templates = emptyTemplates,
+  templates = builtinTemplates,
+  templateService,
   loadInstallations = isTauri() ? detectTerminals : undefined,
 }: AppRoutesProps) {
   const [route, setRoute] = useState<AppRoute>({ page: "home" });
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [detection, setDetection] = useState<{
     status: "unavailable" | "loading" | "ready" | "failed";
     installations: DetectedInstallation[];
@@ -69,6 +74,7 @@ export function AppRoutes({
   }, [route]);
   function home() {
     setError(null);
+    setNotice(null);
     setRoute({ page: "home" });
   }
   function canReplace() {
@@ -98,6 +104,7 @@ export function AppRoutes({
   }
   return (
     <AppShell onHome={home}>
+      {notice ? <p role="status">{notice}</p> : null}
       {error || storeError ? (
         <p className="error-message app-error" role="alert">
           {error ?? storeError}
@@ -110,7 +117,8 @@ export function AppRoutes({
           busy={busy}
           installations={detection.installations}
           detectionStatus={detection.status}
-          templates={templates}
+          templates={[...templates]}
+          templateService={templateService}
           onCreate={(terminal = "ghostty") =>
             setRoute({ page: "create", terminal })
           }
@@ -149,6 +157,25 @@ export function AppRoutes({
               });
             }
           }}
+          onSaveAsTemplate={
+            templateService
+              ? (project) => {
+                  setNotice(null);
+                  templateService
+                    .createFromProject(project, `${project.name} template`)
+                    .then((saved) =>
+                      setNotice(`Saved template "${saved.name}".`),
+                    )
+                    .catch((reason) =>
+                      setError(
+                        reason instanceof Error
+                          ? reason.message
+                          : String(reason),
+                      ),
+                    );
+                }
+              : undefined
+          }
           onProjectChange={(next) => {
             const latest = store.getState().current;
             if (latest?.id === current.id) store.getState().edit(next);

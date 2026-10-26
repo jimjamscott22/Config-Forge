@@ -20,9 +20,7 @@ test("offers equal create and import actions and useful empty states", async () 
   expect(onCreate).toHaveBeenCalledOnce();
   expect(onImport).toHaveBeenCalledOnce();
   expect(screen.getByText("A clean workbench.")).toBeVisible();
-  expect(
-    screen.getByRole("heading", { name: "Built-in templates" }),
-  ).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Templates" })).toBeVisible();
 });
 
 test("terminal cards are keyboard accessible and reflect actual detection", async () => {

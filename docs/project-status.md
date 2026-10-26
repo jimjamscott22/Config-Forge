@@ -4,36 +4,36 @@ Last updated: 2026-10-25
 
 ## Current Scope
 
-Tasks 1–15 of `docs/config-forge-implementation-plan.md` are complete. Task 15
-(editable source, reviewed diffs, grouped diagnostics, unmapped settings) was
-resumed on request on 2026-10-25. Tasks 16–19 remain pending; Task 16 is next
-and requires a new request.
+Tasks 1–16 of `docs/config-forge-implementation-plan.md` are complete. Tasks 15
+and 16 were resumed on request on 2026-10-25. Tasks 17–19 remain pending; Task
+17 is next and requires a new request.
 
 ## Pause Boundary
 
-Development is paused after Task 15. Do not start Task 16 without a new
+Development is paused after Task 16. Do not start Task 17 without a new
 request. When work resumes, read this document and the implementation plan.
 Preserve the recorded verification limits: native desktop persistence/apply and
 release package workflows remain unverified.
 
 ## Completed Work
 
-| Plan tasks | Deliverable                                                              | Milestone commit |
-| ---------- | ------------------------------------------------------------------------ | ---------------- |
-| 1-2        | Tauri/React scaffold, test harness, domain types, and validation schemas | `4de2b96`        |
-| 3          | Terminal adapter contract and replacement registry                       | `bd3eca3`        |
-| 4          | SQLite migrations plus project and snapshot repositories                 | `5481f4e`        |
-| 5          | Structure-preserving Ghostty adapter                                     | `2da12d7`        |
-| 6          | Structure-preserving Kitty adapter                                       | `70df8a6`        |
-| 7          | Structure-preserving Alacritty TOML adapter                              | `c7e646d`        |
-| 8          | Adapter registration and cross-terminal translation reports              | `749c2b7`        |
-| 9          | Terminal and config path detection (`detect_terminals`)                  | `53c51ec`        |
-| 10         | Backups and atomic config writes                                         | `549d0ac`        |
-| 11         | Hybrid (internal + native) config validation                             | `c974af4`        |
-| 12         | Project/history/template services, safe apply orchestration, and store   | `2483fa1`        |
-| 13         | Home Screen, create/import drafts, and responsive Split Studio shell     | `ba9d0c7`        |
-| 14         | Shared-model visual controls and mock terminal preview                   | `ff8accb`        |
-| 15         | Editable source, diff viewer, grouped diagnostics, unmapped settings     | see git log      |
+| Plan tasks | Deliverable                                                               | Milestone commit |
+| ---------- | ------------------------------------------------------------------------- | ---------------- |
+| 1-2        | Tauri/React scaffold, test harness, domain types, and validation schemas  | `4de2b96`        |
+| 3          | Terminal adapter contract and replacement registry                        | `bd3eca3`        |
+| 4          | SQLite migrations plus project and snapshot repositories                  | `5481f4e`        |
+| 5          | Structure-preserving Ghostty adapter                                      | `2da12d7`        |
+| 6          | Structure-preserving Kitty adapter                                        | `70df8a6`        |
+| 7          | Structure-preserving Alacritty TOML adapter                               | `c7e646d`        |
+| 8          | Adapter registration and cross-terminal translation reports               | `749c2b7`        |
+| 9          | Terminal and config path detection (`detect_terminals`)                   | `53c51ec`        |
+| 10         | Backups and atomic config writes                                          | `549d0ac`        |
+| 11         | Hybrid (internal + native) config validation                              | `c974af4`        |
+| 12         | Project/history/template services, safe apply orchestration, and store    | `2483fa1`        |
+| 13         | Home Screen, create/import drafts, and responsive Split Studio shell      | `ba9d0c7`        |
+| 14         | Shared-model visual controls and mock terminal preview                    | `ff8accb`        |
+| 15         | Editable source, diff viewer, grouped diagnostics, unmapped settings      | `c744a13`        |
+| 16         | Built-in catalog, personal-template CRUD/bundles, picker, Rust repository | see git log      |
 
 Task 11 completed hybrid validation: `validateProject()` aggregates schema,
 adapter, target-path, and translation issues, while `validate_candidate` runs
@@ -138,6 +138,39 @@ accessible and works at 320 px; the CodeMirror packages remain installed and can
 be swapped in later. Source-line diagnostics are listed beneath the editor, not
 inline.
 
+### Task 16: Templates
+
+`src/templates/builtins.ts` ships eight original, deep-frozen, portable
+templates: Blank, Modern Dark, Modern Light, High Contrast Dark/Light, Retro
+Green, Presentation, and Minimal (no third-party palettes or attribution). Tests
+assert every built-in generates an error-free config on all three terminals.
+
+`createTemplateService(client)` lists built-ins first then personal templates
+(filterable by terminal; portable templates match every terminal), and supports
+createFromProject, duplicate, rename, update, and remove. Built-ins reject
+update/remove with `BUILTIN_TEMPLATE_IMMUTABLE`; duplicate them to edit. JSON
+bundles (`format: "config-forge-templates"`, `version: 1`) export without ids or
+the built-in flag; import validates the whole bundle first, then stores every
+entry as a new personal template with a fresh id, never trusting a claimed
+built-in flag. Personal templates keep only shared settings plus terminal
+overrides, not comments or unknown lines.
+
+`TemplatePicker` replaces the Home template list (heading is now "Templates")
+with a terminal filter and, when a service is supplied, Duplicate / Export /
+Rename / Delete (confirmed) and Import bundle. Studio gets **Save as template**
+when a service is supplied. `AppRoutes` defaults to the built-ins and takes an
+optional `templateService`; none is supplied yet, so the UI shows built-ins plus
+a note that personal templates need desktop storage. No fallback persistence.
+
+Backend: `db/templates.rs` (`TemplateRepository`: create/get/list/update/delete)
+stores personal templates only — every query filters `built_in = 0`, terminals
+are validated (ghostty/kitty/alacritty/portable), and `AppError::InvalidInput`
+was added. `TemplateClient` in `tauri-client.ts` types the IPC contract
+(`list_templates`, `get_template`, `create_template`, `update_template`,
+`delete_template`); like the project commands, these are unregistered until
+Task 17, which must also set `created_at`/`updated_at` in those commands and
+instantiate `createTemplateService()` in routes.
+
 ### Integration Boundary
 
 Task 13 calls the draft, template, adapter, validation, and store APIs. Drafts
@@ -162,8 +195,8 @@ The frontend passes a retention limit of 20; the backend enforces 20. Wire
 `apply_config` to the checked write helper and provide temporary candidate
 staging/cleanup for `createNativeValidationDependency()`.
 
-Template catalog content, personal-template CRUD, and the picker remain in
-Task 16. Task 12 implements template application and replacement safety only.
+Task 16 added the catalog, personal-template CRUD, and picker; Task 12 owns
+template application and replacement safety.
 
 ## Verification At The Boundary
 
@@ -200,9 +233,8 @@ and optional `eval` inspection code; the production browser smoke passed.
 
 ## Remaining MVP Work
 
-- Task 16: built-in catalog, picker, personal-template CRUD, and JSON bundles.
 - Task 17: app-data/database startup and migrations, IPC implementations and
-  registration, native candidate staging/cleanup, and persistent workflows.
+  registration (including the five template commands), native candidate staging/cleanup, and persistent workflows.
   Include Save/reopen, Apply, export, translation/report, and history/restore UI.
 - Task 18: complete workflow and safe-apply integration coverage.
 - Task 19: CI, operator/contributor/recovery documentation, verified Linux
@@ -245,8 +277,19 @@ performed in this assessment.
 - Rust is unchanged; native desktop launch, live persistence/apply, dependency
   audits, and package builds were not run.
 
+## Task 16 Verification (2026-10-25)
+
+- Vitest: 24 files and 141 tests passed.
+- Playwright: 24 desktop/mobile Chromium tests passed (new templates spec).
+- Rust: 36 tests passed (4 new `db::templates`), rustfmt and Clippy with warnings
+  denied passed.
+- Production build (including TypeScript checking), ESLint, and Prettier passed.
+- Native desktop launch, live persistence/apply, dependency audits, and package
+  builds were not run.
+
 ## Next Planned Work
 
-Task 16: built-in and personal templates. Desktop persistence, startup, and live
-apply remain Task 17 (including reusing `DiffViewer` for the apply review). Do
-not start Task 16 or later milestones without a new request.
+Task 17: app-data/database startup, IPC implementation and registration
+(projects, snapshots, files, apply, templates), native candidate staging, and
+persistent workflows. Reuse `DiffViewer` for the apply review. Do not start Task
+17 or later milestones without a new request.
