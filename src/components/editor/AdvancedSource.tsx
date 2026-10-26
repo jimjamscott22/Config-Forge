@@ -36,7 +36,10 @@ export function AdvancedSource({
   );
   const [draft, setDraft] = useState<Draft | null>(null);
   const [parsed, setParsed] = useState<Parsed | null>(null);
-  const [reviewed, setReviewed] = useState(false);
+  const [reviewedFor, setReviewedFor] = useState<{
+    text: string;
+    project: TerminalProject;
+  } | null>(null);
 
   useEffect(() => {
     if (!draft) return;
@@ -70,7 +73,7 @@ export function AdvancedSource({
             disabled={disabled}
             onClick={() => {
               setParsed(null);
-              setReviewed(false);
+              setReviewedFor(null);
               setDraft({ text: generated, base: generated });
             }}
           >
@@ -86,6 +89,8 @@ export function AdvancedSource({
     !parsed || parsed.text !== draft.text || parsed.project !== project;
   const result = pending ? null : parsed.result;
   const stale = draft.base !== generated;
+  const reviewed =
+    reviewedFor?.text === draft.text && reviewedFor.project === project;
   const needsReview = Boolean(result?.requiresConfirmation) || stale;
   const canApply =
     !disabled &&
@@ -121,7 +126,7 @@ export function AdvancedSource({
         disabled={disabled}
         aria-invalid={result?.applicable === false}
         onChange={(event) => {
-          setReviewed(false);
+          setReviewedFor(null);
           setDraft({ ...draft, text: event.target.value });
         }}
       />
@@ -172,7 +177,10 @@ export function AdvancedSource({
               ? {
                   label: "I reviewed this diff and want to apply the edit.",
                   checked: reviewed,
-                  onChange: setReviewed,
+                  onChange: (checked) =>
+                    setReviewedFor(
+                      checked ? { text: draft.text, project } : null,
+                    ),
                 }
               : undefined
           }
@@ -188,7 +196,7 @@ export function AdvancedSource({
             onApply(result.project);
             setDraft(null);
             setParsed(null);
-            setReviewed(false);
+            setReviewedFor(null);
           }}
         >
           Apply source edit
@@ -199,7 +207,7 @@ export function AdvancedSource({
           onClick={() => {
             setDraft(null);
             setParsed(null);
-            setReviewed(false);
+            setReviewedFor(null);
           }}
         >
           Revert to Generated Source

@@ -196,7 +196,9 @@ export function createTemplateService(
           description,
           terminal: project.terminal,
           shared: project.shared,
-          overrides: project.overrides,
+          // Terminal-specific lines (keybinds, includes, unknown settings) are not
+          // part of a template: generated source never re-emits overrides.
+          overrides: {},
         }),
       );
     },
@@ -251,7 +253,19 @@ export function createTemplateService(
       }
       // Imports are always new personal templates; ids and the built-in flag are never trusted.
       const imported = parsed.templates.map(personal);
-      for (const template of imported) await client.createTemplate(template);
+      const created: ConfigTemplate[] = [];
+      try {
+        for (const template of imported) {
+          await client.createTemplate(template);
+          created.push(template);
+        }
+      } catch (error) {
+        // Best effort: do not leave half a bundle behind.
+        await Promise.allSettled(
+          created.map((template) => client.deleteTemplate(template.id)),
+        );
+        throw error;
+      }
       return imported;
     },
   };

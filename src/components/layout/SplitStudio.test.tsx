@@ -53,3 +53,34 @@ test("narrow studio has four keyboard-operable tabs and preserved validation war
   expect(screen.getByText(/line 1/)).toBeVisible();
   expect(screen.getByRole("tabpanel", { name: /Validation/ })).toBeVisible();
 });
+
+test("switching projects discards the previous project's source draft", async () => {
+  const a = project();
+  const b = makeProject({
+    name: "Other",
+    terminal: "kitty",
+    source: "font_size 11\n",
+  });
+  const { rerender } = render(
+    <SplitStudio
+      project={a}
+      onOpen={() => {}}
+      onHome={() => {}}
+      onProjectChange={() => {}}
+    />,
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Edit source" }));
+  expect(screen.getByLabelText(/Native ghostty config/)).toBeVisible();
+
+  rerender(
+    <SplitStudio
+      project={b}
+      onOpen={() => {}}
+      onHome={() => {}}
+      onProjectChange={() => {}}
+    />,
+  );
+
+  expect(screen.queryByLabelText(/Native ghostty config/)).toBeNull();
+  expect(screen.getByRole("button", { name: "Edit source" })).toBeVisible();
+});

@@ -6,16 +6,15 @@ export type TerminalId = z.infer<typeof terminalIdSchema>;
 const hexColorSchema = z
   .string()
   .regex(/^#[0-9a-fA-F]{6}$/, "Expected a six-digit hex color");
-// Values are written verbatim into line-based configs, so a newline would let
+// Values are written verbatim into line-based configs, so a line break would let
 // an imported template inject extra settings such as `command` or `shell`.
-function isControlCharacter(character: string) {
-  const code = character.charCodeAt(0);
-  return code <= 0x1f || code === 0x7f;
-}
+// Reject every control character (C0, DEL, C1 incl. NEL) and the Unicode line
+// and paragraph separators, which some parsers also treat as line ends.
+const lineBreakingCharacter = /[\p{Cc}\p{Zl}\p{Zp}]/u;
 const fontFamilySchema = z
   .string()
   .min(1)
-  .refine((value) => ![...value].some(isControlCharacter), {
+  .refine((value) => !lineBreakingCharacter.test(value), {
     message: "Must not contain control characters or line breaks",
   })
   .nullable();

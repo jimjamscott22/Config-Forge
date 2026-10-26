@@ -83,3 +83,33 @@ test("Revert to Generated Source discards the edit", async () => {
   expect(screen.getByText("Read only")).toBeVisible();
   expect(onApply).not.toHaveBeenCalled();
 });
+
+test("a review ticked for one project state does not carry over to the next", async () => {
+  const first = project();
+  const onApply = vi.fn();
+  const { rerender } = render(
+    <AdvancedSource project={first} onApply={onApply} />,
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Edit source" }));
+  fireEvent.change(screen.getByLabelText(/Native ghostty config/), {
+    target: { value: "font-size = 13\n# keep me\nexperimental-option = yes\n" },
+  });
+  await userEvent.click(
+    await screen.findByRole("checkbox", { name: /reviewed/ }),
+  );
+  expect(
+    screen.getByRole("button", { name: "Apply source edit" }),
+  ).toBeEnabled();
+
+  const changed = structuredClone(first);
+  changed.shared.font.size = 20;
+  rerender(<AdvancedSource project={changed} onApply={onApply} />);
+
+  expect(await screen.findByText(/Visual controls changed/)).toBeVisible();
+  expect(
+    await screen.findByRole("checkbox", { name: /reviewed/ }),
+  ).not.toBeChecked();
+  expect(
+    screen.getByRole("button", { name: "Apply source edit" }),
+  ).toBeDisabled();
+});

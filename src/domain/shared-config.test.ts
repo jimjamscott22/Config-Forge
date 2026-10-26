@@ -99,7 +99,17 @@ test("font families reject control characters but accept normal names", () => {
       confirmClose: null,
     },
   });
-  for (const bad of ["a\nb", "a\rb", "a\tb", "a\u0000b", "a\u007fb"]) {
+  for (const bad of [
+    "a\nb",
+    "a\rb",
+    "a\tb",
+    "a\u0000b",
+    "a\u007fb",
+    "a\u0085b",
+    "a\u2028b",
+    "a\u2029b",
+    "a\u009fb",
+  ]) {
     expect(
       sharedConfigSchema.safeParse({
         ...base,

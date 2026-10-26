@@ -223,6 +223,7 @@ export function SplitStudio({
             tabIndex={0}
           >
             <AdvancedSource
+              key={project.id}
               project={project}
               disabled={busy || !onProjectChange}
               onApply={(next) => onProjectChange?.(next)}

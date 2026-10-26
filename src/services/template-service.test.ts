@@ -271,3 +271,38 @@ describe("built-in catalog", () => {
     });
   }
 });
+
+test("saving a template never advertises terminal lines that cannot survive use", async () => {
+  const { client } = makeTemplateClient();
+  const service = createTemplateService(client);
+  const project = makeProject({
+    name: "Binds",
+    terminal: "ghostty",
+    source: "font-size = 15\nkeybind = ctrl+a=new_tab\nfuture-option = yes\n",
+  });
+  expect(Object.keys(project.overrides).length).toBeGreaterThan(0);
+
+  const saved = await service.createFromProject(project, "Binds template");
+  const used = projectFromTemplate(saved, "ghostty", "Again");
+
+  expect(used.shared.font.size).toBe(15);
+  expect(saved.overrides).toEqual({});
+  expect(used.overrides).toEqual({});
+});
+
+test("a failed import leaves no partial templates behind", async () => {
+  const { client, templates } = makeTemplateClient();
+  const service = createTemplateService(client);
+  const bundle = await service.exportBundle([
+    "builtin-minimal",
+    "builtin-blank",
+  ]);
+  let calls = 0;
+  client.createTemplate.mockImplementation(async (template) => {
+    if (++calls === 2) throw new Error("disk full");
+    templates.set(template.id, structuredClone(template));
+  });
+
+  await expect(service.importBundle(bundle)).rejects.toThrow("disk full");
+  expect(templates.size).toBe(0);
+});

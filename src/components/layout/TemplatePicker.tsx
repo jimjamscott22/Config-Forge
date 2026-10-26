@@ -143,11 +143,10 @@ export function TemplatePicker({
                     onSubmit={(event) => {
                       event.preventDefault();
                       const next = renaming;
-                      setRenaming(null);
-                      void run(
-                        async () =>
-                          void (await service.rename(next.id, next.name)),
-                      );
+                      void run(async () => {
+                        await service.rename(next.id, next.name);
+                        setRenaming(null);
+                      });
                     }}
                   >
                     <label>

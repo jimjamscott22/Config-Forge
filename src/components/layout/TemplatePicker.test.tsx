@@ -117,3 +117,22 @@ test("imports a bundle file and reports invalid bundles", async () => {
   ).length;
   expect(personal).toBe(2);
 });
+
+test("a failed rename keeps the typed name", async () => {
+  const { client } = makeTemplateClient();
+  const service = createTemplateService(client);
+  render(<TemplatePicker templates={[]} service={service} />);
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Duplicate Minimal" }),
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Rename Minimal copy" }),
+  );
+  const input = screen.getByLabelText(/New name for Minimal copy/);
+  await userEvent.clear(input);
+  await userEvent.type(input, "   ");
+  await userEvent.click(screen.getByRole("button", { name: "Save name" }));
+
+  expect(await screen.findByRole("alert")).toBeVisible();
+  expect(screen.getByLabelText(/New name for Minimal copy/)).toHaveValue("   ");
+});
