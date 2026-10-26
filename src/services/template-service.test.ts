@@ -206,6 +206,25 @@ describe("template catalog and personal templates", () => {
     expect(client.createTemplate).not.toHaveBeenCalled();
   });
 
+  test("rejects bundles whose strings could inject config lines", async () => {
+    const { service, client } = makeTemplateService();
+    const bundle = JSON.parse(await service.exportBundle(["builtin-minimal"]));
+    for (const key of [
+      "family",
+      "boldFamily",
+      "italicFamily",
+      "boldItalicFamily",
+    ]) {
+      bundle.templates[0].shared.font[key] =
+        "Mono\ninitial-command = touch /tmp/pwned";
+      await expect(
+        service.importBundle(JSON.stringify(bundle)),
+      ).rejects.toMatchObject({ code: "INVALID_TEMPLATE_BUNDLE" });
+      bundle.templates[0].shared.font[key] = null;
+    }
+    expect(client.createTemplate).not.toHaveBeenCalled();
+  });
+
   test("an imported bundle cannot claim to be built in", async () => {
     const { service } = makeTemplateService();
     const bundle = JSON.parse(await service.exportBundle(["builtin-minimal"]));

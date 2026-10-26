@@ -64,3 +64,47 @@ describe("sharedConfigSchema", () => {
     expect(sharedConfigSchema.safeParse(config).success).toBe(false);
   });
 });
+
+test("font families reject control characters but accept normal names", () => {
+  const base = sharedConfigSchema.parse({
+    font: {
+      family: "JetBrains Mono",
+      boldFamily: null,
+      italicFamily: null,
+      boldItalicFamily: null,
+      size: null,
+    },
+    colors: {
+      foreground: null,
+      background: null,
+      cursor: null,
+      cursorText: null,
+      selectionBackground: null,
+      selectionForeground: null,
+      ansi: {},
+    },
+    window: {
+      opacity: null,
+      paddingX: null,
+      paddingY: null,
+      decorations: null,
+    },
+    cursor: { shape: null, blink: null },
+    behavior: {
+      scrollbackLines: null,
+      visualBell: null,
+      attentionOnBell: null,
+      copyOnSelect: null,
+      middleClickPaste: null,
+      confirmClose: null,
+    },
+  });
+  for (const bad of ["a\nb", "a\rb", "a\tb", "a\u0000b", "a\u007fb"]) {
+    expect(
+      sharedConfigSchema.safeParse({
+        ...base,
+        font: { ...base.font, family: bad },
+      }).success,
+    ).toBe(false);
+  }
+});

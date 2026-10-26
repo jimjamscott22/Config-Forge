@@ -153,7 +153,10 @@ bundles (`format: "config-forge-templates"`, `version: 1`) export without ids or
 the built-in flag; import validates the whole bundle first, then stores every
 entry as a new personal template with a fresh id, never trusting a claimed
 built-in flag. Personal templates keep only shared settings plus terminal
-overrides, not comments or unknown lines.
+overrides, not comments or unknown lines. Font-family fields reject control
+characters and line breaks (in `sharedConfigSchema`), because Ghostty/Kitty write
+them verbatim and an imported bundle could otherwise inject extra settings such
+as `command` or `shell`.
 
 `TemplatePicker` replaces the Home template list (heading is now "Templates")
 with a terminal filter and, when a service is supplied, Duplicate / Export /
