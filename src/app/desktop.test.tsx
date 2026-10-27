@@ -30,6 +30,7 @@ const startupData: StartupData = {
   ],
   detectionError: null,
   recentProjects: [],
+  skippedProjects: 0,
   templates: [],
   paths,
 };
@@ -108,6 +109,16 @@ describe("desktop startup", () => {
     const saved = makeProject({ name: "From database", terminal: "kitty" });
     setup(vi.fn(async () => ({ ...startupData, recentProjects: [saved] })));
     expect(await screen.findByText("From database")).toBeVisible();
+  });
+
+  test("skips unreadable stored projects and tells the user", async () => {
+    setup(vi.fn(async () => ({ ...startupData, skippedProjects: 2 })));
+    expect(
+      await screen.findByText(/2 saved projects were skipped/),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Create New Config" }),
+    ).toBeVisible();
   });
 
   test("reports a detection failure without blocking persistence", async () => {

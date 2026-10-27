@@ -63,15 +63,16 @@ export function createStudioWorkflows(
   paths: AppPaths,
   client: ProjectClient = projectClient,
 ): StudioWorkflows {
-  async function stage(candidate: string, terminal: TerminalId) {
-    const path = await client.stageCandidate(candidate, terminal);
-    return { path, cleanup: () => client.removeStagedCandidate(path) };
-  }
   return {
     paths,
     inspectDestination: (path) => client.inspectPath(path),
     apply: async (project, destination, confirm) => {
       const currentSource = await client.readOptionalTextFile(destination);
+      // Validate a hidden copy beside the destination so relative includes resolve.
+      const stage = async (candidate: string) => {
+        const path = await client.stageCandidate(candidate, destination);
+        return { path, cleanup: () => client.removeStagedCandidate(path) };
+      };
       const deps = createApplyDependencies(
         project,
         {

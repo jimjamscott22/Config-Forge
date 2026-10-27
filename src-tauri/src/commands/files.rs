@@ -1,10 +1,10 @@
 use std::path::{Component, Path, PathBuf};
 
 use tauri::State;
+use tokio::io::AsyncWriteExt;
 
 use crate::error::AppError;
 use crate::filesystem::atomic_write::{self, WriteReceipt};
-use crate::filesystem::paths::TerminalId;
 use crate::state::AppState;
 
 fn invalid(reason: impl Into<String>) -> AppError {
@@ -22,7 +22,7 @@ fn file_access(path: &Path, source: impl std::fmt::Display) -> AppError {
 
 /// Frontend-supplied destinations must be explicit absolute paths so a write
 /// can never resolve against the app's working directory.
-fn require_absolute(path: &Path) -> Result<(), AppError> {
+pub fn require_absolute(path: &Path) -> Result<(), AppError> {
     if !path.is_absolute() {
         return Err(invalid(format!(
             "path must be absolute: {}",
@@ -118,41 +118,63 @@ pub async fn apply_text(
     .await
 }
 
-/// Writes the candidate into a private directory under the app staging root so
-/// native validation reads a file the app created, never a user path.
-pub async fn stage_text(
-    staging_root: &Path,
-    candidate: &str,
-    terminal: TerminalId,
-) -> Result<PathBuf, AppError> {
-    let directory = staging_root.join(uuid::Uuid::new_v4().to_string());
-    tokio::fs::create_dir_all(&directory)
+/// Suffix of the hidden sibling file native validation reads. It sits next to
+/// the destination (not in an app directory) so relative `include`/`config-file`
+/// entries resolve exactly as they will after the real write.
+const STAGED_SUFFIX: &str = ".cfgforge-validate";
+
+/// True only for names `stage_text` produces: absolute, no `..`, hidden, and
+/// ending in the staging suffix. Used to bound what may be validated or removed.
+pub fn is_staged_candidate(path: &Path) -> bool {
+    path.is_absolute()
+        && !path.components().any(|part| part == Component::ParentDir)
+        && path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with('.') && name.ends_with(STAGED_SUFFIX))
+}
+
+/// Writes the candidate to a new, owner-only hidden file beside `target`.
+pub async fn stage_text(target: &Path, candidate: &str) -> Result<PathBuf, AppError> {
+    require_absolute(target)?;
+    let parent = target
+        .parent()
+        .ok_or_else(|| invalid("destination has no parent directory"))?;
+    let name = target
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("config");
+    let path = parent.join(format!(".{name}.{}{STAGED_SUFFIX}", uuid::Uuid::new_v4()));
+    let mut file = tokio::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(&path)
         .await
-        .map_err(|source| file_access(&directory, source))?;
-    let name = match terminal {
-        TerminalId::Alacritty => "alacritty.toml",
-        TerminalId::Ghostty => "ghostty.conf",
-        TerminalId::Kitty => "kitty.conf",
-    };
-    let path = directory.join(name);
-    if let Err(source) = tokio::fs::write(&path, candidate).await {
-        let _ = tokio::fs::remove_dir_all(&directory).await;
+        .map_err(|source| file_access(&path, source))?;
+    // tokio files buffer writes; flush before the validator reads the file.
+    let written = async {
+        file.write_all(candidate.as_bytes()).await?;
+        file.flush().await
+    }
+    .await;
+    drop(file);
+    if let Err(source) = written {
+        let _ = tokio::fs::remove_file(&path).await;
         return Err(file_access(&path, source));
     }
     Ok(path)
 }
 
-/// Only removes a staged directory created by `stage_text` under the staging root.
-pub async fn remove_staged(staging_root: &Path, staged: &Path) -> Result<(), AppError> {
-    require_absolute(staged)?;
-    let directory = staged
-        .parent()
-        .filter(|directory| directory.parent() == Some(staging_root))
-        .ok_or_else(|| invalid("path is not a staged candidate"))?;
-    match tokio::fs::remove_dir_all(directory).await {
+/// Only removes files that `stage_text` could have created.
+pub async fn remove_staged(staged: &Path) -> Result<(), AppError> {
+    if !is_staged_candidate(staged) {
+        return Err(invalid("path is not a staged candidate"));
+    }
+    match tokio::fs::remove_file(staged).await {
         Ok(()) => Ok(()),
         Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(source) => Err(file_access(directory, source)),
+        Err(source) => Err(file_access(staged, source)),
     }
 }
 
@@ -195,25 +217,19 @@ pub async fn apply_config(request: ApplyConfigRequest) -> Result<WriteReceipt, A
 }
 
 #[tauri::command]
-pub async fn stage_candidate(
-    state: State<'_, AppState>,
-    candidate: String,
-    terminal: TerminalId,
-) -> Result<PathBuf, AppError> {
-    stage_text(&state.staging_dir(), &candidate, terminal).await
+pub async fn stage_candidate(candidate: String, destination: PathBuf) -> Result<PathBuf, AppError> {
+    stage_text(&destination, &candidate).await
 }
 
 #[tauri::command]
-pub async fn remove_staged_candidate(
-    state: State<'_, AppState>,
-    path: PathBuf,
-) -> Result<(), AppError> {
-    remove_staged(&state.staging_dir(), &path).await
+pub async fn remove_staged_candidate(path: PathBuf) -> Result<(), AppError> {
+    remove_staged(&path).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::os::unix::fs::PermissionsExt;
 
     #[tokio::test]
     async fn relative_and_parent_paths_are_rejected() {
@@ -272,25 +288,36 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn staged_candidates_are_private_and_removable_only_from_staging() {
-        let root = tempfile::tempdir().unwrap();
-        let staging = root.path().join("staging");
-        std::fs::create_dir_all(&staging).unwrap();
+    async fn staged_candidates_sit_beside_the_destination_and_are_removable_only_if_staged() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("config");
 
-        let staged = stage_text(&staging, "[font]\n", TerminalId::Alacritty)
-            .await
-            .unwrap();
-        assert!(staged.starts_with(&staging));
-        assert!(staged.ends_with("alacritty.toml"));
-        assert_eq!(std::fs::read_to_string(&staged).unwrap(), "[font]\n");
+        let staged = stage_text(&target, "font-size = 12\n").await.unwrap();
+        assert_eq!(staged.parent(), Some(dir.path()));
+        assert!(is_staged_candidate(&staged));
+        assert_eq!(
+            std::fs::read_to_string(&staged).unwrap(),
+            "font-size = 12\n"
+        );
+        let mode = std::fs::metadata(&staged).unwrap().permissions().mode();
+        assert_eq!(mode & 0o077, 0);
+        assert!(!target.exists());
 
-        let outside = root.path().join("keep.conf");
-        std::fs::write(&outside, "keep").unwrap();
-        assert!(remove_staged(&staging, &outside).await.is_err());
-        assert!(outside.exists());
+        let other = dir.path().join("keep.conf");
+        std::fs::write(&other, "keep").unwrap();
+        assert!(remove_staged(&other).await.is_err());
+        assert!(other.exists());
 
-        remove_staged(&staging, &staged).await.unwrap();
+        remove_staged(&staged).await.unwrap();
         assert!(!staged.exists());
-        remove_staged(&staging, &staged).await.unwrap();
+        remove_staged(&staged).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn staging_fails_when_the_destination_directory_is_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("missing").join("config");
+        assert!(stage_text(&target, "x").await.is_err());
+        assert!(stage_text(Path::new("relative"), "x").await.is_err());
     }
 }

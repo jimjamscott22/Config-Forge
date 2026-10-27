@@ -4,7 +4,9 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use config_forge_lib::commands::files::{apply_text, export_text, inspect, stage_text};
+use config_forge_lib::commands::files::{
+    apply_text, export_text, inspect, remove_staged, stage_text,
+};
 use config_forge_lib::error::AppError;
 use config_forge_lib::filesystem::atomic_write::{atomic_replace_with_hooks, AtomicWriteHooks};
 use config_forge_lib::filesystem::backup::create_backup;
@@ -195,12 +197,9 @@ async fn native_validation_never_goes_through_a_shell() {
 #[tokio::test]
 async fn staged_candidates_validate_and_a_failing_validator_blocks() {
     let dir = tempfile::tempdir().unwrap();
-    let staging = dir.path().join("staging");
-    std::fs::create_dir_all(&staging).unwrap();
+    let destination = dir.path().join("kitty.conf");
     let binary = script(dir.path(), "#!/bin/sh\necho 'bad option' >&2\nexit 3\n");
-    let candidate = stage_text(&staging, "nonsense\n", TerminalId::Kitty)
-        .await
-        .unwrap();
+    let candidate = stage_text(&destination, "nonsense\n").await.unwrap();
 
     let result = validate_candidate(TerminalId::Kitty, &binary, &candidate)
         .await
@@ -208,4 +207,41 @@ async fn staged_candidates_validate_and_a_failing_validator_blocks() {
 
     assert!(!result.valid);
     assert!(result.issues[0].message.contains("exit code 3"));
+    // Staging never touches the destination and cleans up after itself.
+    assert!(!destination.exists());
+    remove_staged(&candidate).await.unwrap();
+    assert_eq!(names(dir.path()), vec!["kitty"]);
+}
+
+#[tokio::test]
+async fn ghostty_receives_one_equals_joined_config_file_argument() {
+    let dir = tempfile::tempdir().unwrap();
+    let args_log = dir.path().join("args.log");
+    let binary = dir.path().join("ghostty");
+    std::fs::write(
+        &binary,
+        format!(
+            "#!/bin/sh\nfor arg in \"$@\"; do printf '%s\\n' \"$arg\" >> '{}'; done\n",
+            args_log.display()
+        ),
+    )
+    .unwrap();
+    std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let candidate = stage_text(&dir.path().join("config"), "font-size = 12\n")
+        .await
+        .unwrap();
+
+    let result = validate_candidate(TerminalId::Ghostty, &binary, &candidate)
+        .await
+        .unwrap();
+
+    assert!(result.valid);
+    let logged = std::fs::read_to_string(&args_log).unwrap();
+    assert_eq!(
+        logged.lines().collect::<Vec<_>>(),
+        vec![
+            "+validate-config".to_string(),
+            format!("--config-file={}", candidate.display()),
+        ]
+    );
 }

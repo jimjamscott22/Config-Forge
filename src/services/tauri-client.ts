@@ -44,8 +44,8 @@ export interface ProjectClient {
   exportConfig(target: string, candidate: string): Promise<WriteReceipt>;
   createBackup(request: BackupRequest): Promise<BackupRecord>;
   applyConfig(request: AtomicWriteRequest): Promise<WriteReceipt>;
-  /** Writes the candidate to a private staging file for native validation. */
-  stageCandidate(candidate: string, terminal: TerminalId): Promise<string>;
+  /** Writes a hidden file beside `destination` that native validation reads. */
+  stageCandidate(candidate: string, destination: string): Promise<string>;
   removeStagedCandidate(path: string): Promise<void>;
 }
 
@@ -77,8 +77,8 @@ export const projectClient: ProjectClient = {
   createBackup: ({ target, backupRoot }) =>
     invoke("create_config_backup", { target, backupRoot }),
   applyConfig: (request) => invoke("apply_config", { request }),
-  stageCandidate: (candidate, terminal) =>
-    invoke("stage_candidate", { candidate, terminal }),
+  stageCandidate: (candidate, destination) =>
+    invoke("stage_candidate", { candidate, destination }),
   removeStagedCandidate: (path) => invoke("remove_staged_candidate", { path }),
 };
 

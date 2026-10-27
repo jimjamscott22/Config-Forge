@@ -69,6 +69,45 @@ test("apply needs an explicit reviewed confirmation, backs up, writes, and verif
   expect(Object.values(state.projects)[0]?.destinationPath).toBe(DESTINATION);
 });
 
+test("a failing native validator blocks the apply before any review", async ({
+  page,
+}) => {
+  await installTauriMock(page, {
+    files: { [DESTINATION]: LIVE },
+    validators: {
+      ghostty: "Native validation failed with exit code 1: bad key",
+    },
+  });
+  await openSavedProject(page);
+  await reviewApply(page);
+  await expect(page.getByRole("alert")).toContainText("bad key");
+  await expect(
+    page.getByText("Apply blocked by validation errors"),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Apply to file" })).toHaveCount(
+    0,
+  );
+  const state = await readMockState(page);
+  expect(state.files[DESTINATION]).toBe(LIVE);
+  expect(state.calls).not.toContain("apply_config");
+  expect(state.calls).toContain("validate_candidate");
+});
+
+test("a passing native validator lets the review proceed", async ({ page }) => {
+  await installTauriMock(page, {
+    files: { [DESTINATION]: LIVE },
+    validators: { ghostty: null },
+  });
+  await openSavedProject(page);
+  await reviewApply(page);
+  await expect(
+    page.getByRole("button", { name: "Apply to file" }),
+  ).toBeVisible();
+  const state = await readMockState(page);
+  expect(state.calls).toContain("stage_candidate");
+  expect(state.calls).toContain("remove_staged_candidate");
+});
+
 test("cancelling the review leaves the live config alone", async ({ page }) => {
   await installTauriMock(page, { files: { [DESTINATION]: LIVE } });
   await openSavedProject(page);

@@ -77,6 +77,23 @@ export async function listProjects(
   );
 }
 
+/**
+ * Lists projects, skipping rows that no longer match the schema so one bad row
+ * cannot lock the user out of the rest. `skipped` says how many were left out.
+ */
+export async function listProjectsLenient(
+  client: ProjectClient = projectClient,
+): Promise<{ projects: TerminalProject[]; skipped: number }> {
+  const projects: TerminalProject[] = [];
+  let skipped = 0;
+  for (const row of await client.listProjects()) {
+    const parsed = projectPayloadSchema.safeParse(row);
+    if (parsed.success) projects.push(parsed.data);
+    else skipped += 1;
+  }
+  return { projects, skipped };
+}
+
 export async function getProject(
   id: string,
   client: ProjectClient = projectClient,

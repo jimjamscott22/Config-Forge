@@ -1,7 +1,7 @@
 import type { DetectedInstallation } from "../adapters/terminal-adapter";
 import type { TerminalProject } from "../domain/project";
 import type { ConfigTemplate } from "../domain/template";
-import { listProjects } from "../services/project-service";
+import { listProjectsLenient } from "../services/project-service";
 import {
   detectTerminals,
   getAppPaths,
@@ -17,6 +17,8 @@ export interface StartupData {
   /** Set when detection failed but the database is still usable. */
   detectionError: string | null;
   recentProjects: TerminalProject[];
+  /** Stored projects that no longer match the schema and were left out of the list. */
+  skippedProjects: number;
   /** Personal templates only; built-ins come from the frontend catalog. */
   templates: ConfigTemplate[];
   paths: AppPaths;
@@ -56,14 +58,15 @@ export async function loadStartupData(
         error: describe(error),
       }),
     ),
-    listProjects(deps.projects),
+    listProjectsLenient(deps.projects),
     deps.templates.listTemplates(),
     deps.getAppPaths(),
   ]);
   return {
     detectedTerminals: detection.installations,
     detectionError: detection.error,
-    recentProjects,
+    recentProjects: recentProjects.projects,
+    skippedProjects: recentProjects.skipped,
     templates,
     paths,
   };

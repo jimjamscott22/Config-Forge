@@ -53,23 +53,24 @@ pub struct NativeValidatorSpec {
     pub timeout: Duration,
 }
 
-fn validator_args(terminal: TerminalId, candidate_path: &Path) -> Vec<OsString> {
+/// Argument vectors are built here from `terminal` alone. `None` means the
+/// terminal has no validation mode that is safe to run: Alacritty's
+/// `--print-events` is a normal launch (it would open a window and run the
+/// candidate's `terminal.shell`), so only the built-in checks apply to it.
+fn validator_args(terminal: TerminalId, candidate_path: &Path) -> Option<Vec<OsString>> {
     match terminal {
-        TerminalId::Ghostty => vec![
-            OsString::from("+validate-config"),
-            OsString::from("--config-file"),
-            candidate_path.as_os_str().to_owned(),
-        ],
-        TerminalId::Kitty => vec![
+        // Ghostty only accepts option values in `--key=value` form.
+        TerminalId::Ghostty => {
+            let mut option = OsString::from("--config-file=");
+            option.push(candidate_path.as_os_str());
+            Some(vec![OsString::from("+validate-config"), option])
+        }
+        TerminalId::Kitty => Some(vec![
             OsString::from("--config"),
             candidate_path.as_os_str().to_owned(),
             OsString::from("--debug-config"),
-        ],
-        TerminalId::Alacritty => vec![
-            OsString::from("--config-file"),
-            candidate_path.as_os_str().to_owned(),
-            OsString::from("--print-events"),
-        ],
+        ]),
+        TerminalId::Alacritty => None,
     }
 }
 
@@ -77,13 +78,13 @@ pub fn build_validator_spec(
     terminal: TerminalId,
     executable: &Path,
     candidate_path: &Path,
-) -> NativeValidatorSpec {
-    NativeValidatorSpec {
+) -> Option<NativeValidatorSpec> {
+    Some(NativeValidatorSpec {
         terminal,
         executable: executable.to_path_buf(),
-        args: validator_args(terminal, candidate_path),
+        args: validator_args(terminal, candidate_path)?,
         timeout: DEFAULT_TIMEOUT,
-    }
+    })
 }
 
 struct ProcessOutcome {
@@ -221,7 +222,9 @@ pub async fn validate_candidate(
         return Ok(unavailable_result(terminal));
     }
 
-    let spec = build_validator_spec(terminal, binary_path, candidate_path);
+    let Some(spec) = build_validator_spec(terminal, binary_path, candidate_path) else {
+        return Ok(unavailable_result(terminal));
+    };
     let outcome = run_native_validation(&spec).await?;
 
     if outcome.success {
@@ -263,6 +266,62 @@ mod tests {
         assert!(result.valid);
         assert!(!result.native_available);
         assert_eq!(result.issues[0].code, "NATIVE_VALIDATION_UNAVAILABLE");
+    }
+
+    #[test]
+    fn ghostty_gets_a_single_equals_joined_config_file_argument() {
+        let spec = build_validator_spec(
+            TerminalId::Ghostty,
+            Path::new("/usr/bin/ghostty"),
+            Path::new("/cfg dir/.config.cfgforge-validate"),
+        )
+        .unwrap();
+        assert_eq!(
+            spec.args,
+            vec![
+                OsString::from("+validate-config"),
+                OsString::from("--config-file=/cfg dir/.config.cfgforge-validate"),
+            ]
+        );
+    }
+
+    #[test]
+    fn kitty_gets_its_documented_arguments() {
+        let spec = build_validator_spec(
+            TerminalId::Kitty,
+            Path::new("/usr/bin/kitty"),
+            Path::new("/cfg/.kitty.conf.cfgforge-validate"),
+        )
+        .unwrap();
+        assert_eq!(
+            spec.args,
+            vec![
+                OsString::from("--config"),
+                OsString::from("/cfg/.kitty.conf.cfgforge-validate"),
+                OsString::from("--debug-config"),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn alacritty_is_never_launched_for_validation() {
+        let dir = tempfile::tempdir().unwrap();
+        let marker = dir.path().join("launched");
+        let binary_path = write_script(
+            dir.path(),
+            "alacritty",
+            &format!("#!/bin/sh\ntouch '{}'\nexit 0\n", marker.display()),
+        );
+        let candidate_path = dir.path().join("alacritty.toml");
+
+        let result = validate_candidate(TerminalId::Alacritty, &binary_path, &candidate_path)
+            .await
+            .unwrap();
+
+        assert!(result.valid);
+        assert!(!result.native_available);
+        assert_eq!(result.issues[0].code, "NATIVE_VALIDATION_UNAVAILABLE");
+        assert!(!marker.exists());
     }
 
     #[tokio::test]

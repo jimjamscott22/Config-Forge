@@ -82,11 +82,16 @@ Native validation is implemented once, in `src-tauri/src/process/native_validati
 - The backend chooses the arguments for each terminal (`validator_args`); the
   frontend and editor text never supply an executable or flags.
 - The executable must be the binary found on `PATH` for that terminal and the
-  candidate must be a file staged under the app staging directory
-  (`commands/validation.rs::check_request`).
+  candidate must be a regular file created by `stage_candidate` (a hidden
+  `.<name>.<id>.cfgforge-validate` file beside the destination, so relative
+  includes resolve) (`commands/validation.rs::check_request`).
 - Run without a shell, with stdin closed, a timeout, and capped output.
-- If a terminal has no side-effect-free validation mode, report native
-  validation as unavailable instead of launching the terminal.
+- If a terminal has no side-effect-free validation mode, return `None` from
+  `validator_args` so native validation is reported as unavailable instead of
+  launching the terminal. Alacritty is handled this way: `--print-events` is a
+  normal launch that would open a window and run the candidate's shell.
+- Check how the terminal parses option values (Ghostty needs `--key=value` as
+  one argument) and pin the exact argv in a test.
 
 A new adapter that needs native validation adds its argument list there, with a
 test that the candidate path is passed as a single argument.

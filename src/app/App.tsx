@@ -109,6 +109,12 @@ function ReadyApp({ data, ...props }: AppRoutesProps & { data: StartupData }) {
       workflows={workflows}
       templateService={templateService}
       loadInstallations={props.loadInstallations ?? loadInstallations}
+      initialNotice={
+        props.initialNotice ??
+        (data.skippedProjects
+          ? `${data.skippedProjects} saved project${data.skippedProjects === 1 ? " was" : "s were"} skipped because ${data.skippedProjects === 1 ? "it" : "they"} could not be read.`
+          : undefined)
+      }
     />
   );
 }

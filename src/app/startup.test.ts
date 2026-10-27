@@ -46,6 +46,17 @@ describe("loadStartupData", () => {
     expect(data.paths).toEqual(paths);
   });
 
+  test("skips stored projects that fail validation instead of failing startup", async () => {
+    const { client } = makeProjectClient();
+    const good = makeProject({ name: "Good", terminal: "kitty" });
+    const bad = { ...makeProject({ name: "Bad", terminal: "kitty" }), id: "x" };
+    client.listProjects.mockResolvedValue([good, bad]);
+    const { deps } = setup({ projects: client });
+    const data = await loadStartupData(deps);
+    expect(data.recentProjects.map((item) => item.name)).toEqual(["Good"]);
+    expect(data.skippedProjects).toBe(1);
+  });
+
   test("keeps going with a recoverable error when only detection fails", async () => {
     const { deps } = setup({
       detectTerminals: vi.fn(async () => {

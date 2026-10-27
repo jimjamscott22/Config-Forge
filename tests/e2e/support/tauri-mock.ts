@@ -5,6 +5,13 @@ export interface MockSeed {
   files?: Record<string, string>;
   /** Paths that are symbolic links. */
   symlinks?: string[];
+  /**
+   * Terminals whose binary is "installed"; the value is the native validator's
+   * error message, or null for a validator that accepts everything.
+   */
+  validators?: Partial<
+    Record<"ghostty" | "kitty" | "alacritty", string | null>
+  >;
 }
 
 export interface MockState {
@@ -18,6 +25,7 @@ export interface MockState {
   /** Command names in the order they were invoked. */
   calls: string[];
   failApplyWith: string | null;
+  validators: NonNullable<MockSeed["validators"]>;
 }
 
 /**
@@ -41,6 +49,7 @@ export async function installTauriMock(page: Page, seed: MockSeed = {}) {
           backups: [],
           calls: [],
           failApplyWith: null,
+          validators: initial.validators ?? {},
         };
     const save = () => localStorage.setItem(KEY, JSON.stringify(state));
     const hash = (text: string) =>
@@ -52,19 +61,20 @@ export async function installTauriMock(page: Page, seed: MockSeed = {}) {
       detect_terminals: () => [
         {
           terminal: "ghostty",
-          binaryPath: null,
+          binaryPath: "ghostty" in state.validators ? "/usr/bin/ghostty" : null,
           configPaths: ["/home/me/.config/ghostty/config"],
           version: null,
         },
         {
           terminal: "kitty",
-          binaryPath: null,
+          binaryPath: "kitty" in state.validators ? "/usr/bin/kitty" : null,
           configPaths: ["/home/me/.config/kitty/kitty.conf"],
           version: null,
         },
         {
           terminal: "alacritty",
-          binaryPath: null,
+          binaryPath:
+            "alacritty" in state.validators ? "/usr/bin/alacritty" : null,
           configPaths: ["/home/me/.config/alacritty/alacritty.toml"],
           version: null,
         },
@@ -142,13 +152,27 @@ export async function installTauriMock(page: Page, seed: MockSeed = {}) {
           sha256: hash(request.candidate),
         };
       },
-      stage_candidate: () => "/data/staging/id/candidate",
+      stage_candidate: ({ destination }) => `${destination}.cfgforge-validate`,
       remove_staged_candidate: () => undefined,
-      validate_candidate: () => ({
-        valid: true,
-        nativeAvailable: false,
-        issues: [],
-      }),
+      validate_candidate: ({ request }) => {
+        const message = state.validators[request.terminal as "ghostty"];
+        if (message === undefined)
+          return { valid: true, nativeAvailable: false, issues: [] };
+        if (message === null)
+          return { valid: true, nativeAvailable: true, issues: [] };
+        return {
+          valid: false,
+          nativeAvailable: true,
+          issues: [
+            {
+              id: "native:exit-code",
+              severity: "error",
+              code: "NATIVE_VALIDATION_FAILED",
+              message,
+            },
+          ],
+        };
+      },
     };
     const internals = {
       invoke: async (cmd: string, args: unknown) => {

@@ -61,14 +61,14 @@ test("keeps the existing backup, write and native validation command contracts",
     target: "/target",
     backupRoot: "/backups",
   });
-  await projectClient.stageCandidate("candidate", "kitty");
+  await projectClient.stageCandidate("candidate", "/home/me/kitty.conf");
   expect(invoke).toHaveBeenLastCalledWith("stage_candidate", {
     candidate: "candidate",
-    terminal: "kitty",
+    destination: "/home/me/kitty.conf",
   });
-  await projectClient.removeStagedCandidate("/staging/id/kitty.conf");
+  await projectClient.removeStagedCandidate("/home/me/.k.1.cfgforge-validate");
   expect(invoke).toHaveBeenLastCalledWith("remove_staged_candidate", {
-    path: "/staging/id/kitty.conf",
+    path: "/home/me/.k.1.cfgforge-validate",
   });
   await projectClient.inspectPath("/target");
   expect(invoke).toHaveBeenLastCalledWith("inspect_path", { path: "/target" });

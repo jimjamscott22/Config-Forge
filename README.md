@@ -111,7 +111,7 @@ telemetry, update checker, or remote content, and its content security policy
 only allows resources from the app itself. The shell and filesystem Tauri
 plugins are not registered, so the interface can only reach the commands listed
 in `src-tauri/src/lib.rs`. The only programs it ever runs are the Ghostty, Kitty,
-or Alacritty binary found on your `PATH`, with fixed validation arguments and no
+or Alacritty binary found on your `PATH`, with fixed validation arguments (and only for Ghostty and Kitty) and no
 shell.
 
 ## Where your data lives
@@ -124,7 +124,6 @@ Everything is under the Tauri app-data directory, normally
 | `config-forge.sqlite3`             | Projects, snapshots, and personal templates (SQLite) |
 | `backups/<terminal>/<project-id>/` | Timestamped `.bak` copies made before each apply     |
 | `exports/`                         | Default location offered for exports                 |
-| `staging/`                         | Temporary candidate files for native validation      |
 
 Backups are never deleted by Config Forge, and uninstalling the package leaves
 this directory in place.
@@ -139,8 +138,10 @@ it; any project can also be rolled back from its **History** panel.
 
 - Linux only. The AppImage and Debian packages are built by CI; clean-account
   install smoke tests have not been run by the maintainers.
-- Native validation depends on each terminal's CLI; when it is missing or has no
-  safe validation mode, only the built-in checks run and the app says so.
+- Native validation uses Ghostty's `+validate-config` and Kitty's `--debug-config`
+  on a hidden temporary copy beside the destination (so relative includes
+  resolve). Alacritty has no validation mode that avoids launching a window, so
+  it gets the built-in checks only. When a binary is missing the app says so.
 - The destination check before replacing a file is not a filesystem lock: an
   edit by another program in the instant between the check and the rename can
   still be overwritten (the backup holds the previous content).

@@ -199,3 +199,23 @@ test("adopting a service-written project refreshes lists and clears dirty state"
     "Restored",
   ]);
 });
+
+test("adopting after the open project changed mid-flight keeps the newer state", async () => {
+  const { client } = makeProjectClient();
+  const original = await createProject(
+    { name: "Daily", terminal: "ghostty" },
+    client,
+  );
+  const other = await createProject(
+    { name: "Other", terminal: "kitty" },
+    client,
+  );
+  const store = createProjectStore(client);
+  await store.getState().open(original.id);
+  const pending = store.getState().adopt({ ...original, name: "Restored" });
+  // Simulates the user switching projects while the restore round trip runs.
+  store.setState({ current: other });
+
+  await expect(pending).rejects.toThrow("changed while it was being restored");
+  expect(store.getState().current?.name).toBe("Other");
+});

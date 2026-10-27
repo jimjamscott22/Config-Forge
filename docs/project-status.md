@@ -183,7 +183,7 @@ instantiate `createTemplateService()` in routes.
 ### Task 17: Desktop Wiring and Persistent Workflows
 
 `AppState` now holds the environment, SQLite database (WAL), and the data,
-backup, export, and staging directories. `AppState::initialize` creates the
+backup, and export directories. `AppState::initialize` creates the
 directories, opens the database, and runs migrations; `lib.rs` runs it in
 `setup` and, on failure, shows a blocking error dialog and exits rather than
 continuing with a partial database. `command_handler()` lists every registered
@@ -196,7 +196,10 @@ claimed built-in), `get_app_paths`, `inspect_path`, `read_text_file`,
 `read_optional_text_file`, `export_config` (new files only), `apply_config`
 (checked atomic replace), `stage_candidate`/`remove_staged_candidate`, and
 `validate_candidate`, which now accepts only the binary the backend resolves
-from `PATH` and a candidate staged under the app staging directory.
+from `PATH` and a regular file made by `stage_candidate` (a hidden sibling of
+the destination). Ghostty is validated with `--config-file=<path>` (one
+argument); Alacritty is never launched because `--print-events` is a normal
+run, so it gets built-in checks only.
 `write_file_atomically` is no longer registered. Frontend-supplied file paths
 must be absolute and free of `..`.
 

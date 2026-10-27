@@ -24,7 +24,7 @@ keep); delete the new file to undo.
 
 Open the project, then use **History** in the Studio. Automatic snapshots are
 taken before an apply, a restore, and a translation (the newest 20 per project
-are kept). Named snapshots are kept until you delete the project. Restoring first snapshots the
+are kept). Named snapshots are never pruned (there is no project deletion yet). Restoring first snapshots the
 current state, so a restore can itself be undone.
 
 ## Apply was refused
@@ -57,5 +57,7 @@ copy the `backups/` directory out first.
 
 ## Leftover files
 
-`staging/` holds short-lived copies used for native validation and is cleaned on
-startup. `exports/` holds files you exported. Neither is needed for recovery.
+Native validation briefly writes a hidden `.<name>.<id>.cfgforge-validate` file
+next to the destination and removes it afterwards. If the app is killed
+mid-validation one can remain; it is safe to delete. `exports/` holds files you
+exported. Neither is needed for recovery.

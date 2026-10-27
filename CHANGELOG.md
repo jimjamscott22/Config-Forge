@@ -18,14 +18,17 @@ All notable changes are documented here. The format follows
   with its report, and named snapshots with confirmed restore.
 - Playwright specs for create, import, translate, and safe apply, backed by an
   in-memory Tauri stand-in; Rust integration tests for the safe-apply pipeline.
-- Leftover staged candidates are cleared on startup.
+- Stored projects that fail validation are skipped with a startup notice
+  instead of blocking the app.
 - README, architecture, adapter-authoring, and recovery documentation; CI
   workflow; third-party notices; favicon.
 
 ### Changed
 
 - `validate_candidate` now accepts only the terminal binary the backend resolves
-  from `PATH` and a file staged under the app staging directory.
+  from `PATH` and a hidden candidate copy beside the destination; Alacritty is
+  never launched for validation and Ghostty gets `--config-file=<path>`.
+- `create_config_backup` only writes below the app backup directory.
 - The unchecked `write_file_atomically` command is no longer registered.
 
 ### Known gaps

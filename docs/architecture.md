@@ -47,7 +47,7 @@ Key services:
   verify. Validation errors block; cancellation returns normally; overlapping
   applies to the same project or path are rejected.
 - `studio-workflows.ts` — binds the services to the app-data paths (backup
-  root, export directory, candidate staging) for the Studio panels.
+  root, export directory, hidden candidate copies for validation) for the Studio panels.
 - `validation-service.ts` aggregates schema, adapter, target-path, and
   translation issues. `translation-service.ts` builds cross-terminal reports.
 - `project-service.ts` — create/import/save/export, snapshots, restore.
@@ -62,7 +62,7 @@ faked.
 | Module        | Responsibility                                                               |
 | ------------- | ---------------------------------------------------------------------------- |
 | `lib.rs`      | startup (`AppState::initialize`), plugin and command registration            |
-| `state.rs`    | `AppState`: environment, database, data/backup/export/staging directories    |
+| `state.rs`    | `AppState`: environment, database, data/backup/export directories    |
 | `commands/`   | thin Tauri commands over testable functions                                  |
 | `db/`         | sqlx SQLite repositories (WAL) and `migrations/0001_initial.sql`             |
 | `filesystem/` | `paths` (detection), `atomic_write`, `backup`                                |
@@ -106,5 +106,8 @@ through Tauri's mock runtime.
   being reviewed as new, or a symlink is refused and leaves the original alone.
 - `export_config` creates new files only.
 - `validate_candidate` accepts only the binary the backend itself resolves from
-  `PATH` and a file staged under the app staging directory, runs it with fixed
-  arguments, and never uses a shell.
+  `PATH` and a regular file staged by `stage_candidate`, runs it with fixed
+  arguments, and never uses a shell. The staged file is a hidden sibling of the
+  destination so relative includes resolve; it is removed afterwards. Alacritty
+  is never launched for validation.
+- `create_config_backup` only writes below the app backup directory.

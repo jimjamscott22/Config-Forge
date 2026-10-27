@@ -3,7 +3,7 @@ import { projectPayloadSchema, type TerminalProject } from "../domain/project";
 import type { ProjectSnapshot } from "../domain/snapshot";
 import {
   getProject,
-  listProjects,
+  listProjectsLenient,
   listSnapshots,
   persistNewProject,
   saveProject,
@@ -54,7 +54,7 @@ export function createProjectStore(client: ProjectClient = projectClient) {
       error: null,
       refresh: () =>
         run(async () => {
-          set({ projects: await listProjects(client) });
+          set({ projects: (await listProjectsLenient(client)).projects });
         }),
       open: (id, discardChanges = false) =>
         run(async () => {
@@ -118,10 +118,16 @@ export function createProjectStore(client: ProjectClient = projectClient) {
         }),
       adopt: (project) =>
         run(async () => {
-          const [projects, snapshots] = await Promise.all([
-            listProjects(client),
+          const previous = get().current;
+          const [{ projects }, snapshots] = await Promise.all([
+            listProjectsLenient(client),
             listSnapshots(project.id, client),
           ]);
+          if (get().current !== previous) {
+            throw new Error(
+              "The project changed while it was being restored; reopen it from the project list.",
+            );
+          }
           set({
             projects,
             snapshots,

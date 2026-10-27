@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::db::Database;
 use crate::error::AppError;
@@ -22,16 +22,13 @@ impl AppState {
     ) -> Result<Self, AppError> {
         let backup_dir = data_dir.join("backups");
         let export_dir = data_dir.join("exports");
-        // Staged candidates are single-use; anything left is from a crashed run.
-        let _ = std::fs::remove_dir_all(staging_dir(&data_dir));
-        for dir in [&data_dir, &backup_dir, &export_dir, &staging_dir(&data_dir)] {
+        for dir in [&data_dir, &backup_dir, &export_dir] {
             std::fs::create_dir_all(dir).map_err(|source| AppError::Startup {
                 reason: format!("cannot create {}: {source}", dir.display()),
             })?;
         }
 
-        let database_path = data_dir.join("config-forge.sqlite3");
-        let database = Database::connect(&format!("sqlite://{}", database_path.display())).await?;
+        let database = Database::connect_file(&data_dir.join("config-forge.sqlite3")).await?;
         database.migrate().await?;
 
         Ok(Self {
@@ -42,14 +39,6 @@ impl AppState {
             export_dir,
         })
     }
-
-    pub fn staging_dir(&self) -> PathBuf {
-        staging_dir(&self.data_dir)
-    }
-}
-
-fn staging_dir(data_dir: &Path) -> PathBuf {
-    data_dir.join("staging")
 }
 
 #[cfg(test)]
@@ -68,7 +57,6 @@ mod tests {
 
         assert!(state.backup_dir.is_dir());
         assert!(state.export_dir.is_dir());
-        assert!(state.staging_dir().is_dir());
         let tables: Vec<String> =
             sqlx::query_scalar("SELECT name FROM sqlite_master WHERE type = 'table'")
                 .fetch_all(state.database.pool())
@@ -80,21 +68,6 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(mode, "wal");
-    }
-
-    #[tokio::test]
-    async fn initialize_clears_leftover_staged_candidates() {
-        let dir = tempfile::tempdir().unwrap();
-        let data_dir = dir.path().join("app-data");
-        let leftover = data_dir.join("staging").join("old-id");
-        std::fs::create_dir_all(&leftover).unwrap();
-        std::fs::write(leftover.join("kitty.conf"), "stale").unwrap();
-
-        let state = AppState::initialize(data_dir, Box::new(TestEnvironment::new()))
-            .await
-            .unwrap();
-
-        assert_eq!(std::fs::read_dir(state.staging_dir()).unwrap().count(), 0);
     }
 
     #[tokio::test]

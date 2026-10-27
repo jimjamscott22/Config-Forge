@@ -32,6 +32,8 @@ export interface AppRoutesProps {
   loadInstallations?: () => Promise<DetectedInstallation[]>;
   /** Enables Save, Apply, export, translation, and history; supplied by desktop startup. */
   workflows?: StudioWorkflows;
+  /** Shown once on the Home screen, e.g. a startup warning. */
+  initialNotice?: string;
 }
 
 export function AppRoutes({
@@ -40,10 +42,11 @@ export function AppRoutes({
   templateService,
   loadInstallations = isTauri() ? detectTerminals : undefined,
   workflows,
+  initialNotice,
 }: AppRoutesProps) {
   const [route, setRoute] = useState<AppRoute>({ page: "home" });
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(initialNotice ?? null);
   const [detection, setDetection] = useState<{
     status: "unavailable" | "loading" | "ready" | "failed";
     installations: DetectedInstallation[];
@@ -219,10 +222,13 @@ export function AppRoutes({
                     const latest = store.getState().current;
                     if (latest?.id === current.id) {
                       if (latest.destinationPath !== destination) {
+                        const unsavedEdits = store.getState().dirty;
                         store
                           .getState()
                           .edit({ ...latest, destinationPath: destination });
-                        await store.getState().save();
+                        // Never persist edits the user made during the review;
+                        // they are saved with the next explicit Save.
+                        if (!unsavedEdits) await store.getState().save();
                       }
                       await store.getState().refreshSnapshots();
                     }

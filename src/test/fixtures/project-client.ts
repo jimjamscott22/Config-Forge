@@ -46,7 +46,7 @@ export function makeProjectClient() {
       sha256: "hash",
     })),
     stageCandidate: vi.fn<ProjectClient["stageCandidate"]>(
-      async () => "/staging/id/candidate.conf",
+      async (_candidate, destination) => `${destination}.cfgforge-validate`,
     ),
     removeStagedCandidate: vi.fn<ProjectClient["removeStagedCandidate"]>(
       async () => undefined,
