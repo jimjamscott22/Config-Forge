@@ -16,6 +16,10 @@ pub enum AppError {
     ReadbackMismatch { path: String },
     #[error("backup of {path} failed: {reason}")]
     BackupFailed { path: String, reason: String },
+    #[error("file access to {path} failed: {reason}")]
+    FileAccess { path: String, reason: String },
+    #[error("startup failed: {reason}")]
+    Startup { reason: String },
     #[error("native validation for {terminal} failed: {reason}")]
     NativeValidationFailed { terminal: String, reason: String },
 }
