@@ -44,9 +44,17 @@ Full check before a milestone: format:check, lint, typecheck, test, build, cargo
 
 ## Current state (read before feature work)
 
-Tasks 1–16 of `docs/config-forge-implementation-plan.md` are done; development is **paused after Task 16** — don't start Task 17+ without a new request. Read `docs/project-status.md` and the plan first.
+All 19 tasks of `docs/config-forge-implementation-plan.md` are done; there is no
+further planned milestone, so new features need a new request. Read
+`docs/project-status.md` first for verification limits.
 
-Important gap: `src-tauri/src/lib.rs` registers only `detect_terminals`, `create_config_backup`, `write_file_atomically`, and `validate_candidate`. The project/snapshot/`read_text_file`/`export_config`/`apply_config` commands in `ProjectClient` are typed contracts with no registered Rust implementation yet (Task 17 owns DB startup, command registration — including the template commands — and native candidate staging). Don't assume those IPC calls work in the desktop runtime; Save/Apply are intentionally disabled in the UI.
+Desktop persistence is wired: `src-tauri/src/lib.rs` (`command_handler()`) lists
+every registered command, `AppState::initialize` runs startup, and `App.tsx`
+only enables Save/Apply/export/translate/history when running in the Tauri shell
+(a plain browser keeps session drafts). `tests/e2e/support/tauri-mock.ts` fakes
+the backend for Playwright; real write safety is tested in
+`src-tauri/tests/safe_apply.rs`. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` if the
+installed Chromium differs from Playwright's pin.
 
 ## Conventions
 
