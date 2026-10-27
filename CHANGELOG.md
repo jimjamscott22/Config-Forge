@@ -18,6 +18,7 @@ All notable changes are documented here. The format follows
   with its report, and named snapshots with confirmed restore.
 - Playwright specs for create, import, translate, and safe apply, backed by an
   in-memory Tauri stand-in; Rust integration tests for the safe-apply pipeline.
+- Leftover staged candidates are cleared on startup.
 - README, architecture, adapter-authoring, and recovery documentation; CI
   workflow; third-party notices; favicon.
 
@@ -29,10 +30,11 @@ All notable changes are documented here. The format follows
 
 ### Known gaps
 
-- AppImage and Debian bundles are configured and built in CI; clean-account
-  install and uninstall smoke tests are manual and have not been recorded.
-- Native desktop launch against a real display was not exercised in automated
-  checks.
+- AppImage and Debian bundles build locally and are configured for CI;
+  clean-account install and uninstall smoke tests are manual and have not been
+  recorded.
+- The release binary starts under Xvfb and creates its database, but UI
+  workflows were not driven in the real shell.
 
 ## [0.1.0] - Foundation
 

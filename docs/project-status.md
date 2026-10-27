@@ -317,11 +317,14 @@ performed in this assessment.
 
 ## Known Limits
 
-- The desktop shell was not launched on a real display; the IPC layer is covered
+- The release binary was launched under Xvfb (2026-10-27): it stayed running and
+  created `config-forge.sqlite3` (WAL) under the documented app-data path, but
+  no UI interaction was driven in the real shell. The IPC layer is covered
   by the Rust mock-runtime smoke test, the Rust integration tests, and the
   Playwright specs that use an in-memory backend.
-- Clean-account install, run, and uninstall smoke tests of the packages were not
-  performed. Dependency audits were not rerun.
+- `npm run tauri build -- --bundles appimage,deb` succeeded locally (AppImage
+  about 81 MB, deb about 5 MB), but clean-account install, run, and uninstall
+  smoke tests of the packages were not performed. Dependency audits were not rerun.
 - The pre-rename destination check is not a filesystem lock.
 - Automatic snapshots from UI workflows are created before apply, restore, and
   translation. Import-replacement and template-replacement snapshots exist in

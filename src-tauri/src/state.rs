@@ -22,6 +22,8 @@ impl AppState {
     ) -> Result<Self, AppError> {
         let backup_dir = data_dir.join("backups");
         let export_dir = data_dir.join("exports");
+        // Staged candidates are single-use; anything left is from a crashed run.
+        let _ = std::fs::remove_dir_all(staging_dir(&data_dir));
         for dir in [&data_dir, &backup_dir, &export_dir, &staging_dir(&data_dir)] {
             std::fs::create_dir_all(dir).map_err(|source| AppError::Startup {
                 reason: format!("cannot create {}: {source}", dir.display()),
@@ -78,6 +80,21 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(mode, "wal");
+    }
+
+    #[tokio::test]
+    async fn initialize_clears_leftover_staged_candidates() {
+        let dir = tempfile::tempdir().unwrap();
+        let data_dir = dir.path().join("app-data");
+        let leftover = data_dir.join("staging").join("old-id");
+        std::fs::create_dir_all(&leftover).unwrap();
+        std::fs::write(leftover.join("kitty.conf"), "stale").unwrap();
+
+        let state = AppState::initialize(data_dir, Box::new(TestEnvironment::new()))
+            .await
+            .unwrap();
+
+        assert_eq!(std::fs::read_dir(state.staging_dir()).unwrap().count(), 0);
     }
 
     #[tokio::test]
