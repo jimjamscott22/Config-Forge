@@ -3,8 +3,9 @@ import { projectPayloadSchema, type TerminalProject } from "../domain/project";
 import type { ProjectSnapshot } from "../domain/snapshot";
 import {
   getProject,
-  listProjects,
+  listProjectsLenient,
   listSnapshots,
+  persistNewProject,
   saveProject,
 } from "../services/project-service";
 import { projectClient, type ProjectClient } from "../services/tauri-client";
@@ -13,6 +14,8 @@ export interface ProjectStore {
   projects: TerminalProject[];
   current: TerminalProject | null;
   snapshots: ProjectSnapshot[];
+  /** True once the current project exists in persistent storage. */
+  persisted: boolean;
   dirty: boolean;
   busy: boolean;
   error: string | null;
@@ -21,6 +24,9 @@ export interface ProjectStore {
   startDraft(project: TerminalProject, replaceCurrent?: boolean): void;
   edit(project: TerminalProject): void;
   save(): Promise<void>;
+  refreshSnapshots(): Promise<void>;
+  /** Adopts a project a service has already written (restore, translation). */
+  adopt(project: TerminalProject): Promise<void>;
 }
 
 export function createProjectStore(client: ProjectClient = projectClient) {
@@ -42,12 +48,13 @@ export function createProjectStore(client: ProjectClient = projectClient) {
       projects: [],
       current: null,
       snapshots: [],
+      persisted: false,
       dirty: false,
       busy: false,
       error: null,
       refresh: () =>
         run(async () => {
-          set({ projects: await listProjects(client) });
+          set({ projects: (await listProjectsLenient(client)).projects });
         }),
       open: (id, discardChanges = false) =>
         run(async () => {
@@ -65,7 +72,7 @@ export function createProjectStore(client: ProjectClient = projectClient) {
               "Project changed while opening; keep or save your edits first.",
             );
           }
-          set({ current, snapshots, dirty: false });
+          set({ current, snapshots, persisted: true, dirty: false });
         }),
       startDraft: (project, replaceCurrent = false) => {
         if (get().busy)
@@ -75,6 +82,7 @@ export function createProjectStore(client: ProjectClient = projectClient) {
         set({
           current: projectPayloadSchema.parse(project),
           snapshots: [],
+          persisted: false,
           dirty: true,
           error: null,
         });
@@ -88,15 +96,45 @@ export function createProjectStore(client: ProjectClient = projectClient) {
         run(async () => {
           const current = get().current;
           if (!current) throw new Error("No project is open.");
-          const saved = await saveProject(current, client);
+          const saved = get().persisted
+            ? await saveProject(current, client)
+            : await persistNewProject(current, client);
           set((state) => ({
             projects: [
               saved,
               ...state.projects.filter((project) => project.id !== saved.id),
             ],
             current: state.current === current ? saved : state.current,
+            persisted: true,
             dirty: state.current !== current,
           }));
+        }),
+      refreshSnapshots: () =>
+        run(async () => {
+          const current = get().current;
+          if (!current) return;
+          const snapshots = await listSnapshots(current.id, client);
+          if (get().current?.id === current.id) set({ snapshots });
+        }),
+      adopt: (project) =>
+        run(async () => {
+          const previous = get().current;
+          const [{ projects }, snapshots] = await Promise.all([
+            listProjectsLenient(client),
+            listSnapshots(project.id, client),
+          ]);
+          if (get().current !== previous) {
+            throw new Error(
+              "The project changed while it was being restored; reopen it from the project list.",
+            );
+          }
+          set({
+            projects,
+            snapshots,
+            current: project,
+            persisted: true,
+            dirty: false,
+          });
         }),
     };
   });

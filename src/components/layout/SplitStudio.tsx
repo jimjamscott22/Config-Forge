@@ -38,6 +38,8 @@ export function SplitStudio({
   onSharedChange,
   onProjectChange,
   onSaveAsTemplate,
+  persistence,
+  actions,
 }: {
   project: TerminalProject;
   projects?: TerminalProject[];
@@ -49,6 +51,10 @@ export function SplitStudio({
   onSharedChange?(shared: SharedConfig): void;
   onProjectChange?(project: TerminalProject): void;
   onSaveAsTemplate?(project: TerminalProject): void;
+  /** Present once desktop persistence is wired; otherwise the project is a session draft. */
+  persistence?: { persisted: boolean; dirty: boolean; onSave(): void };
+  /** Apply / export / translate / history panels, shown below the workspace. */
+  actions?: ReactNode;
 }) {
   const narrow = useSyncExternalStore(
     subscribeLayout,
@@ -104,7 +110,15 @@ export function SplitStudio({
             {project.name}
           </h1>
         </div>
-        <span className="draft-badge">Session draft</span>
+        <span className="draft-badge">
+          {!persistence
+            ? "Session draft"
+            : !persistence.persisted
+              ? "Not saved yet"
+              : persistence.dirty
+                ? "Unsaved changes"
+                : "Saved"}
+        </span>
       </header>
       <div className="studio-grid">
         <aside
@@ -240,13 +254,36 @@ export function SplitStudio({
           </div>
         </section>
       </div>
+      {actions}
       <footer className="studio-actions">
-        <p>Session draft · Saving and applying are not available yet.</p>
+        <p>
+          {persistence
+            ? "Projects are stored locally on this computer."
+            : "Session draft · Saving and applying need the desktop app."}
+        </p>
         <div>
-          <button className="button" type="button" disabled>
+          <button
+            className="button"
+            type="button"
+            disabled={
+              !persistence ||
+              busy ||
+              (persistence.persisted && !persistence.dirty)
+            }
+            onClick={() => persistence?.onSave()}
+          >
             Save project
           </button>
-          <button className="button button-primary" type="button" disabled>
+          <button
+            className="button button-primary"
+            type="button"
+            disabled={!actions}
+            onClick={() => {
+              const panel = document.getElementById("project-actions");
+              panel?.scrollIntoView?.({ block: "start" });
+              panel?.querySelector("input")?.focus();
+            }}
+          >
             Apply config
           </button>
         </div>

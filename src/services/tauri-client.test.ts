@@ -4,7 +4,6 @@ import type { DetectedInstallation } from "../adapters/terminal-adapter";
 import {
   detectTerminals,
   projectClient,
-  writeFileAtomically,
   validateCandidate,
 } from "./tauri-client";
 
@@ -62,10 +61,20 @@ test("keeps the existing backup, write and native validation command contracts",
     target: "/target",
     backupRoot: "/backups",
   });
-  await writeFileAtomically("/target", "candidate");
-  expect(invoke).toHaveBeenLastCalledWith("write_file_atomically", {
-    target: "/target",
+  await projectClient.stageCandidate("candidate", "/home/me/kitty.conf");
+  expect(invoke).toHaveBeenLastCalledWith("stage_candidate", {
     candidate: "candidate",
+    destination: "/home/me/kitty.conf",
+  });
+  await projectClient.removeStagedCandidate("/home/me/.k.1.cfgforge-validate");
+  expect(invoke).toHaveBeenLastCalledWith("remove_staged_candidate", {
+    path: "/home/me/.k.1.cfgforge-validate",
+  });
+  await projectClient.inspectPath("/target");
+  expect(invoke).toHaveBeenLastCalledWith("inspect_path", { path: "/target" });
+  await projectClient.readOptionalTextFile("/target");
+  expect(invoke).toHaveBeenLastCalledWith("read_optional_text_file", {
+    path: "/target",
   });
   const request = {
     terminal: "ghostty" as const,

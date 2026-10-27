@@ -56,12 +56,42 @@ export async function saveProject(
   return saved;
 }
 
+/** Persists a session draft for the first time. */
+export async function persistNewProject(
+  project: TerminalProject,
+  client: ProjectClient = projectClient,
+): Promise<TerminalProject> {
+  const created = projectPayloadSchema.parse({
+    ...project,
+    updatedAt: new Date().toISOString(),
+  });
+  await client.createProject(created);
+  return created;
+}
+
 export async function listProjects(
   client: ProjectClient = projectClient,
 ): Promise<TerminalProject[]> {
   return (await client.listProjects()).map((project) =>
     projectPayloadSchema.parse(project),
   );
+}
+
+/**
+ * Lists projects, skipping rows that no longer match the schema so one bad row
+ * cannot lock the user out of the rest. `skipped` says how many were left out.
+ */
+export async function listProjectsLenient(
+  client: ProjectClient = projectClient,
+): Promise<{ projects: TerminalProject[]; skipped: number }> {
+  const projects: TerminalProject[] = [];
+  let skipped = 0;
+  for (const row of await client.listProjects()) {
+    const parsed = projectPayloadSchema.safeParse(row);
+    if (parsed.success) projects.push(parsed.data);
+    else skipped += 1;
+  }
+  return { projects, skipped };
 }
 
 export async function getProject(

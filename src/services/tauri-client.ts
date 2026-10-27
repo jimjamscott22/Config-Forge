@@ -13,6 +13,10 @@ import type { NativeValidationRequest } from "../adapters/terminal-adapter";
 import type { ValidationResult } from "../domain/validation";
 import type { AtomicWriteRequest, BackupRequest } from "./apply-service";
 
+export interface PathInfo {
+  exists: boolean;
+  isSymlink: boolean;
+}
 export interface BackupRecord {
   path: string;
   sha256: string;
@@ -34,12 +38,28 @@ export interface ProjectClient {
   getSnapshot(id: string): Promise<ProjectSnapshot | null>;
   listSnapshots(projectId: string): Promise<ProjectSnapshot[]>;
   readTextFile(path: string): Promise<string>;
+  inspectPath(path: string): Promise<PathInfo>;
+  /** Null when the file does not exist, so new destinations are not errors. */
+  readOptionalTextFile(path: string): Promise<string | null>;
   exportConfig(target: string, candidate: string): Promise<WriteReceipt>;
   createBackup(request: BackupRequest): Promise<BackupRecord>;
   applyConfig(request: AtomicWriteRequest): Promise<WriteReceipt>;
+  /** Writes a hidden file beside `destination` that native validation reads. */
+  stageCandidate(candidate: string, destination: string): Promise<string>;
+  removeStagedCandidate(path: string): Promise<void>;
 }
 
-// These project/history/file command contracts are registered with desktop startup in Task 17.
+export interface AppPaths {
+  dataDir: string;
+  backupDir: string;
+  exportDir: string;
+}
+
+export async function getAppPaths(): Promise<AppPaths> {
+  return invoke("get_app_paths");
+}
+
+// Registered in src-tauri/src/lib.rs; they only work inside the desktop shell.
 export const projectClient: ProjectClient = {
   createProject: (project) => invoke("create_project", { project }),
   saveProject: (project) => invoke("save_project", { project }),
@@ -50,11 +70,16 @@ export const projectClient: ProjectClient = {
   getSnapshot: (id) => invoke("get_snapshot", { id }),
   listSnapshots: (projectId) => invoke("list_snapshots", { projectId }),
   readTextFile: (path) => invoke("read_text_file", { path }),
+  inspectPath: (path) => invoke("inspect_path", { path }),
+  readOptionalTextFile: (path) => invoke("read_optional_text_file", { path }),
   exportConfig: (target, candidate) =>
     invoke("export_config", { target, candidate }),
   createBackup: ({ target, backupRoot }) =>
     invoke("create_config_backup", { target, backupRoot }),
   applyConfig: (request) => invoke("apply_config", { request }),
+  stageCandidate: (candidate, destination) =>
+    invoke("stage_candidate", { candidate, destination }),
+  removeStagedCandidate: (path) => invoke("remove_staged_candidate", { path }),
 };
 
 /** Personal templates only; built-ins live in the frontend catalog. */
@@ -66,7 +91,6 @@ export interface TemplateClient {
   deleteTemplate(id: string): Promise<void>;
 }
 
-// Registered with the other persistence commands in Task 17.
 export const templateClient: TemplateClient = {
   listTemplates: (terminal) => invoke("list_templates", { terminal }),
   getTemplate: (id) => invoke("get_template", { id }),
@@ -79,10 +103,4 @@ export async function validateCandidate(
   request: NativeValidationRequest,
 ): Promise<ValidationResult> {
   return invoke("validate_candidate", { request });
-}
-export async function writeFileAtomically(
-  target: string,
-  candidate: string,
-): Promise<WriteReceipt> {
-  return invoke("write_file_atomically", { target, candidate });
 }

@@ -36,6 +36,8 @@ export interface VerifyRequest {
 export interface ApplyConfirmation {
   project: TerminalProject;
   target: string;
+  /** The destination content the diff was computed against; null when new. */
+  currentSource: string | null;
   candidate: string;
   diff: string;
   issues: ValidationIssue[];
@@ -113,6 +115,7 @@ async function runApply(
     !(await deps.confirm({
       project: structuredClone(draft),
       target: target.path,
+      currentSource: target.currentSource,
       candidate,
       diff,
       issues,

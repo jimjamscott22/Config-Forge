@@ -6,7 +6,7 @@ pub mod templates;
 use std::str::FromStr;
 
 use sqlx::{
-    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+    sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
     SqlitePool,
 };
 
@@ -20,10 +20,21 @@ pub struct Database {
 impl Database {
     pub async fn connect(url: &str) -> Result<Self, AppError> {
         let in_memory = url == "sqlite::memory:";
+        Self::open(SqliteConnectOptions::from_str(url)?, in_memory).await
+    }
+
+    /// Opens a database file by path, so characters such as `?` or `%` in the
+    /// app-data directory are never parsed as part of a URL.
+    pub async fn connect_file(path: &std::path::Path) -> Result<Self, AppError> {
+        Self::open(SqliteConnectOptions::new().filename(path), false).await
+    }
+
+    async fn open(options: SqliteConnectOptions, in_memory: bool) -> Result<Self, AppError> {
         let max_connections = if in_memory { 1 } else { 5 };
-        let options = SqliteConnectOptions::from_str(url)?
-            .create_if_missing(!in_memory)
-            .foreign_keys(true);
+        let mut options = options.create_if_missing(!in_memory).foreign_keys(true);
+        if !in_memory {
+            options = options.journal_mode(SqliteJournalMode::Wal);
+        }
         let pool = SqlitePoolOptions::new()
             .max_connections(max_connections)
             .connect_with(options)

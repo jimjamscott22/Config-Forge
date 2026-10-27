@@ -1,19 +1,20 @@
 # Config Forge Project Status
 
-Last updated: 2026-10-25
+Last updated: 2026-10-27
 
 ## Current Scope
 
-Tasks 1–16 of `docs/config-forge-implementation-plan.md` are complete. Tasks 15
-and 16 were resumed on request on 2026-10-25. Tasks 17–19 remain pending; Task
-17 is next and requires a new request.
+Tasks 1–19 of `docs/config-forge-implementation-plan.md` are complete. Tasks 17
+(desktop wiring and persistent workflows), 18 (workflow and safe-apply tests),
+and 19 (packaging, CI, and documentation) were completed on request on
+2026-10-27. The MVP is feature-complete; see "Verification At The Boundary" and
+"Known Limits" for what has and has not been verified.
 
 ## Pause Boundary
 
-Development is paused after Task 16. Do not start Task 17 without a new
-request. When work resumes, read this document and the implementation plan.
-Preserve the recorded verification limits: native desktop persistence/apply and
-release package workflows remain unverified.
+There is no further planned milestone. New features need a new request.
+Preserve the recorded verification limits: a real-display launch of the desktop
+shell and clean-account package smoke tests have not been performed.
 
 ## Completed Work
 
@@ -34,6 +35,9 @@ release package workflows remain unverified.
 | 14         | Shared-model visual controls and mock terminal preview                    | `ff8accb`        |
 | 15         | Editable source, diff viewer, grouped diagnostics, unmapped settings      | `c744a13`        |
 | 16         | Built-in catalog, personal-template CRUD/bundles, picker, Rust repository | see git log      |
+| 17         | App startup, command registration, persistent Save/Apply/export/translate/history | see git log |
+| 18         | Playwright workflow specs and Rust safe-apply integration tests           | see git log      |
+| 19         | Bundles, CI, README, architecture/adapter/recovery docs, notices          | see git log      |
 
 Task 11 completed hybrid validation: `validateProject()` aggregates schema,
 adapter, target-path, and translation issues, while `validate_candidate` runs
@@ -176,32 +180,67 @@ was added. `TemplateClient` in `tauri-client.ts` types the IPC contract
 Task 17, which must also set `created_at`/`updated_at` in those commands and
 instantiate `createTemplateService()` in routes.
 
-### Integration Boundary
+### Task 17: Desktop Wiring and Persistent Workflows
 
-Task 13 calls the draft, template, adapter, validation, and store APIs. Drafts
-are explicitly kept only in the current session; they are not a fallback for
-failed persistence. Recent projects come from the project store, and template
-data can be supplied to the routes. The default UI does not load a database or
-invent a template catalog before their planned wiring milestones. Terminal
-detection uses the existing Tauri command in the desktop runtime and reports
-unavailable/failed detection without blocking browser draft workflows.
+`AppState` now holds the environment, SQLite database (WAL), and the data,
+backup, and export directories. `AppState::initialize` creates the
+directories, opens the database, and runs migrations; `lib.rs` runs it in
+`setup` and, on failure, shows a blocking error dialog and exits rather than
+continuing with a partial database. `command_handler()` lists every registered
+command and a mock-runtime smoke test calls through it. The `fs` and `shell`
+plugins are not registered.
 
-Task 17 still owns app-data directories, database initialization,
-persistence/file IPC bridges, command registration, and desktop startup. The new `apply_config` Rust command
-is defined but not registered. The project/history/read/export client methods
-are typed IPC contracts; their Rust command implementations are deferred to
-that wiring milestone. No fallback persistence is used.
+Commands: projects/snapshots (full payload JSON, retained snapshot insertion),
+the five personal-template commands (the backend stamps timestamps and rejects a
+claimed built-in), `get_app_paths`, `inspect_path`, `read_text_file`,
+`read_optional_text_file`, `export_config` (new files only), `apply_config`
+(checked atomic replace), `stage_candidate`/`remove_staged_candidate`, and
+`validate_candidate`, which now accepts only the binary the backend resolves
+from `PATH` and a regular file made by `stage_candidate` (a hidden sibling of
+the destination). Ghostty is validated with `--config-file=<path>` (one
+argument); Alacritty is never launched because `--print-events` is a normal
+run, so it gets built-in checks only.
+`write_file_atomically` is no longer registered. Frontend-supplied file paths
+must be absolute and free of `..`.
 
-For Task 17, project rows must store the complete `TerminalProject` JSON.
-Snapshot rows must store the complete `ProjectSnapshot` JSON (including its
-reason and captured project), and `create_snapshot` must call
-`SnapshotRepository::create_retained()` rather than the unretained `create()`.
-The frontend passes a retention limit of 20; the backend enforces 20. Wire
-`apply_config` to the checked write helper and provide temporary candidate
-staging/cleanup for `createNativeValidationDependency()`.
+Frontend: `src/app/startup.ts` loads detection, projects, personal templates,
+and paths (a detection failure is recoverable; a database failure is a blocking
+startup error with Try again). `App` uses it in the desktop shell and falls back
+to in-memory session drafts in a plain browser. The store tracks `persisted` so
+the first Save creates and later Saves update; `adopt` takes over a project a
+service already wrote. `StudioWorkflows` (`studio-workflows.ts`) binds the
+apply, export, translation, snapshot, and restore services to the app paths. The
+Studio gains Save, and Apply, Export, Translate, and History panels (apply and
+translate/snapshot operations require a saved, unmodified project because the
+pre-change snapshot references the stored project). Apply refuses symlinks
+before review, shows the existing `DiffViewer` against the live file, and
+requires an explicit confirmation; after a successful apply the destination path
+is saved on the project. `AppRoutes` creates the personal-template service from
+the desktop client.
 
-Task 16 added the catalog, personal-template CRUD, and picker; Task 12 owns
-template application and replacement safety.
+### Task 18: Workflow Tests
+
+`tests/e2e/support/tauri-mock.ts` stands in for the Rust backend inside
+Playwright (state persists in localStorage so a reload is a restart). Specs:
+`create-project`, `import-config` (all three terminals, save and reopen),
+`translate-project`, and `safe-apply` (confirmation gate, backup/snapshot/write/
+read-back order, cancellation, injected write failure, stale destination,
+symlink, new destination, export refusal, snapshot restore).
+`src-tauri/tests/safe_apply.rs` verifies on a real filesystem: backup before
+replacement, injected failure retaining the original with no temp files,
+matching read-back hash, stale/new-destination races, symlink refusal, export
+never overwriting, and that native validation passes hostile paths as a single
+argv entry with no shell. `PLAYWRIGHT_CHROMIUM_EXECUTABLE` overrides the
+Chromium path when the installed build differs from Playwright's pin.
+
+### Task 19: Packaging and Documentation
+
+`tauri.conf.json` targets AppImage and Debian with category and descriptions.
+`.github/workflows/ci.yml` runs frontend checks, the web build, Playwright,
+Rust fmt/clippy/tests, a Linux bundle build, and attaches artifacts on `v*`
+tags. README, `docs/architecture.md`, `docs/adapter-authoring.md`,
+`docs/recovery.md`, `CHANGELOG.md`, and `THIRD_PARTY_NOTICES.md` were added, and
+a favicon was added (Chromium otherwise logs a 404).
 
 ## Verification At The Boundary
 
@@ -235,19 +274,6 @@ Vite/PostCSS. Tasks 12–13 made no dependency changes. Dependency audits were n
 rerun for this milestone, so no current audit result is claimed. Vite still
 emits upstream `@iarna/toml` warnings about its unused Node stream entry point
 and optional `eval` inspection code; the production browser smoke passed.
-
-## Remaining MVP Work
-
-- Task 17: app-data/database startup and migrations, IPC implementations and
-  registration (including the five template commands), native candidate staging/cleanup, and persistent workflows.
-  Include Save/reopen, Apply, export, translation/report, and history/restore UI.
-- Task 18: complete workflow and safe-apply integration coverage.
-- Task 19: CI, operator/contributor/recovery documentation, verified Linux
-  packages, and clean-account release smoke tests.
-
-The AppImage/Debian bundle targets already exist, but package builds and
-packaged workflows have not been verified. Existing Playwright tests cover
-session draft/import flows, not live desktop persistence or writes.
 
 ## Assessment Verification (2026-10-06)
 
@@ -292,9 +318,17 @@ performed in this assessment.
 - Native desktop launch, live persistence/apply, dependency audits, and package
   builds were not run.
 
-## Next Planned Work
+## Known Limits
 
-Task 17: app-data/database startup, IPC implementation and registration
-(projects, snapshots, files, apply, templates), native candidate staging, and
-persistent workflows. Reuse `DiffViewer` for the apply review. Do not start Task
-17 or later milestones without a new request.
+- The release binary was launched under Xvfb (2026-10-27): it stayed running and
+  created `config-forge.sqlite3` (WAL) under the documented app-data path, but
+  no UI interaction was driven in the real shell. The IPC layer is covered
+  by the Rust mock-runtime smoke test, the Rust integration tests, and the
+  Playwright specs that use an in-memory backend.
+- `npm run tauri build -- --bundles appimage,deb` succeeded locally (AppImage
+  about 81 MB, deb about 5 MB), but clean-account install, run, and uninstall
+  smoke tests of the packages were not performed. Dependency audits were not rerun.
+- The pre-rename destination check is not a filesystem lock.
+- Automatic snapshots from UI workflows are created before apply, restore, and
+  translation. Import-replacement and template-replacement snapshots exist in
+  the services but no UI path invokes them yet.
