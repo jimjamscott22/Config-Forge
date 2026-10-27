@@ -13,6 +13,8 @@ import type { TemplateService } from "../services/template-service";
 import { detectTerminals } from "../services/tauri-client";
 import { builtinTemplates } from "../templates/builtins";
 import { projectStore, type createProjectStore } from "../state/project-store";
+import type { StudioWorkflows } from "../services/studio-workflows";
+import { ProjectActions } from "../components/workflows/ProjectActions";
 
 export type AppRoute =
   | { page: "home" }
@@ -28,6 +30,8 @@ export interface AppRoutesProps {
   /** Enables personal templates; omitted until desktop persistence is wired. */
   templateService?: TemplateService;
   loadInstallations?: () => Promise<DetectedInstallation[]>;
+  /** Enables Save, Apply, export, translation, and history; supplied by desktop startup. */
+  workflows?: StudioWorkflows;
 }
 
 export function AppRoutes({
@@ -35,6 +39,7 @@ export function AppRoutes({
   templates = builtinTemplates,
   templateService,
   loadInstallations = isTauri() ? detectTerminals : undefined,
+  workflows,
 }: AppRoutesProps) {
   const [route, setRoute] = useState<AppRoute>({ page: "home" });
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +54,9 @@ export function AppRoutes({
   const current = useStore(store, (state) => state.current);
   const projects = useStore(store, (state) => state.projects);
   const busy = useStore(store, (state) => state.busy);
+  const persisted = useStore(store, (state) => state.persisted);
+  const dirty = useStore(store, (state) => state.dirty);
+  const snapshots = useStore(store, (state) => state.snapshots);
   const storeError = useStore(store, (state) => state.error);
   useEffect(() => {
     if (!loadInstallations) return;
@@ -180,6 +188,69 @@ export function AppRoutes({
             const latest = store.getState().current;
             if (latest?.id === current.id) store.getState().edit(next);
           }}
+          persistence={
+            workflows
+              ? {
+                  persisted,
+                  dirty,
+                  onSave: () => {
+                    store
+                      .getState()
+                      .save()
+                      .catch(() => undefined);
+                  },
+                }
+              : undefined
+          }
+          actions={
+            workflows ? (
+              <ProjectActions
+                project={current}
+                workflows={workflows}
+                snapshots={snapshots}
+                ready={persisted && !dirty && !busy}
+                destinationSuggestions={
+                  detection.installations.find(
+                    (item) => item.terminal === current.terminal,
+                  )?.configPaths ?? []
+                }
+                onApplied={async (destination) => {
+                  try {
+                    const latest = store.getState().current;
+                    if (latest?.id === current.id) {
+                      if (latest.destinationPath !== destination) {
+                        store
+                          .getState()
+                          .edit({ ...latest, destinationPath: destination });
+                        await store.getState().save();
+                      }
+                      await store.getState().refreshSnapshots();
+                    }
+                  } catch (reason) {
+                    throw new Error(
+                      `The file was written, but the project could not be updated: ${
+                        reason instanceof Error
+                          ? reason.message
+                          : String(reason)
+                      }`,
+                      { cause: reason },
+                    );
+                  }
+                }}
+                onSnapshotsChanged={() => store.getState().refreshSnapshots()}
+                onRestored={(restored) => store.getState().adopt(restored)}
+                onProjectsChanged={() => {
+                  store
+                    .getState()
+                    .refresh()
+                    .catch(() => undefined);
+                }}
+                onOpenProject={(id) => {
+                  void openProject(id);
+                }}
+              />
+            ) : undefined
+          }
         />
       ) : route.page === "create" || route.page === "import" ? (
         <ProjectDraftForm
@@ -189,6 +260,7 @@ export function AppRoutes({
           template={route.template}
           onOpen={openDraft}
           onCancel={home}
+          persistent={Boolean(workflows)}
         />
       ) : (
         <p role="status">

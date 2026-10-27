@@ -26,6 +26,13 @@ export function makeProjectClient() {
       ),
     ),
     readTextFile: vi.fn<ProjectClient["readTextFile"]>(async () => "candidate"),
+    inspectPath: vi.fn<ProjectClient["inspectPath"]>(async () => ({
+      exists: false,
+      isSymlink: false,
+    })),
+    readOptionalTextFile: vi.fn<ProjectClient["readOptionalTextFile"]>(
+      async () => null,
+    ),
     exportConfig: vi.fn<ProjectClient["exportConfig"]>(async () => ({
       bytesWritten: 9,
       sha256: "hash",
@@ -38,6 +45,12 @@ export function makeProjectClient() {
       bytesWritten: 9,
       sha256: "hash",
     })),
+    stageCandidate: vi.fn<ProjectClient["stageCandidate"]>(
+      async () => "/staging/id/candidate.conf",
+    ),
+    removeStagedCandidate: vi.fn<ProjectClient["removeStagedCandidate"]>(
+      async () => undefined,
+    ),
   } satisfies ProjectClient;
   return { client, projects, snapshots };
 }

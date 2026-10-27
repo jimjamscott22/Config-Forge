@@ -30,6 +30,7 @@ pub fn command_handler<R: Runtime>(
         commands::templates::update_template,
         commands::templates::delete_template,
         commands::backups::create_config_backup,
+        commands::files::inspect_path,
         commands::files::read_text_file,
         commands::files::read_optional_text_file,
         commands::files::export_config,

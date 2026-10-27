@@ -101,7 +101,7 @@ export function HomeScreen({
               <div>
                 <p className="eyebrow">Current workspace</p>
                 <h2 id="draft-title">{current.name}</h2>
-                <p>{current.terminal} · Kept in this session</p>
+                <p>{current.terminal} · Open workspace</p>
               </div>
               <button
                 className="button"

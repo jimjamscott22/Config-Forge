@@ -55,6 +55,30 @@ pub fn get_app_paths(state: State<'_, AppState>) -> AppPaths {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PathInfo {
+    pub exists: bool,
+    pub is_symlink: bool,
+}
+
+/// Looks at the path itself (not its target) so a symlinked config is visible
+/// before the user reviews a write the backend would refuse.
+pub async fn inspect(path: &Path) -> Result<PathInfo, AppError> {
+    require_absolute(path)?;
+    match tokio::fs::symlink_metadata(path).await {
+        Ok(metadata) => Ok(PathInfo {
+            exists: true,
+            is_symlink: metadata.file_type().is_symlink(),
+        }),
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(PathInfo {
+            exists: false,
+            is_symlink: false,
+        }),
+        Err(source) => Err(file_access(path, source)),
+    }
+}
+
 pub async fn read_text(path: &Path) -> Result<String, AppError> {
     require_absolute(path)?;
     tokio::fs::read_to_string(path)
@@ -133,6 +157,11 @@ pub async fn remove_staged(staging_root: &Path, staged: &Path) -> Result<(), App
 }
 
 #[tauri::command]
+pub async fn inspect_path(path: PathBuf) -> Result<PathInfo, AppError> {
+    inspect(&path).await
+}
+
+#[tauri::command]
 pub async fn read_text_file(path: PathBuf) -> Result<String, AppError> {
     read_text(&path).await
 }
@@ -193,6 +222,30 @@ mod tests {
         assert!(apply_text(Path::new("/tmp/../etc/x"), "x", None)
             .await
             .is_err());
+    }
+
+    #[tokio::test]
+    async fn inspect_reports_missing_regular_and_symlinked_paths() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("config");
+        assert_eq!(
+            inspect(&file).await.unwrap(),
+            PathInfo {
+                exists: false,
+                is_symlink: false
+            }
+        );
+        std::fs::write(&file, "x").unwrap();
+        let link = dir.path().join("link");
+        std::os::unix::fs::symlink(&file, &link).unwrap();
+        assert!(!inspect(&file).await.unwrap().is_symlink);
+        assert_eq!(
+            inspect(&link).await.unwrap(),
+            PathInfo {
+                exists: true,
+                is_symlink: true
+            }
+        );
     }
 
     #[tokio::test]

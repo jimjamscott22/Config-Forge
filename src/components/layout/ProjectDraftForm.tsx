@@ -12,12 +12,15 @@ export function ProjectDraftForm({
   template,
   onOpen,
   onCancel,
+  persistent = false,
 }: {
   mode: "create" | "import";
   initialTerminal?: TerminalId;
   template?: ConfigTemplate;
   onOpen(project: TerminalProject): boolean;
   onCancel(): void;
+  /** Desktop persistence is available, so a draft can be saved from the Studio. */
+  persistent?: boolean;
 }) {
   const [name, setName] = useState(template?.name ?? "Untitled config");
   const [terminal, setTerminal] = useState(initialTerminal);
@@ -138,8 +141,9 @@ export function ProjectDraftForm({
           </p>
         ) : null}
         <p className="draft-notice">
-          Drafts stay in this session. Saving and applying are not available
-          yet.
+          {persistent
+            ? "Opens as a draft. Use Save project in the Studio to keep it."
+            : "Drafts stay in this session. Saving and applying need the desktop app."}
         </p>
         <div className="form-actions">
           <button className="button" type="button" onClick={onCancel}>

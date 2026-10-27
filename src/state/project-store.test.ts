@@ -156,3 +156,46 @@ test("session drafts require confirmation before replacement and do not pretend 
   expect(store.getState().current).toEqual(second);
   expect(client.createProject).not.toHaveBeenCalled();
 });
+
+test("a new draft is created on first save and updated afterwards", async () => {
+  const { client, projects } = makeProjectClient();
+  const store = createProjectStore(client);
+  const draft = makeProject({ name: "Draft", terminal: "kitty" });
+  store.getState().startDraft(draft);
+  expect(store.getState().persisted).toBe(false);
+
+  await store.getState().save();
+  expect(client.createProject).toHaveBeenCalledTimes(1);
+  expect(client.saveProject).not.toHaveBeenCalled();
+  expect(store.getState()).toMatchObject({ persisted: true, dirty: false });
+  expect(projects.has(draft.id)).toBe(true);
+
+  store.getState().edit({ ...store.getState().current!, name: "Draft 2" });
+  await store.getState().save();
+  expect(client.saveProject).toHaveBeenCalledTimes(1);
+  expect(client.createProject).toHaveBeenCalledTimes(1);
+});
+
+test("adopting a service-written project refreshes lists and clears dirty state", async () => {
+  const { client } = makeProjectClient();
+  const original = await createProject(
+    { name: "Daily", terminal: "ghostty" },
+    client,
+  );
+  const store = createProjectStore(client);
+  await store.getState().open(original.id);
+  store.getState().edit({ ...original, name: "Unsaved" });
+  const restored = { ...original, name: "Restored" };
+  client.saveProject(restored);
+
+  await store.getState().adopt(restored);
+
+  expect(store.getState()).toMatchObject({
+    dirty: false,
+    persisted: true,
+    current: { name: "Restored" },
+  });
+  expect(store.getState().projects.map((item) => item.name)).toEqual([
+    "Restored",
+  ]);
+});

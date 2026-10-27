@@ -56,6 +56,19 @@ export async function saveProject(
   return saved;
 }
 
+/** Persists a session draft for the first time. */
+export async function persistNewProject(
+  project: TerminalProject,
+  client: ProjectClient = projectClient,
+): Promise<TerminalProject> {
+  const created = projectPayloadSchema.parse({
+    ...project,
+    updatedAt: new Date().toISOString(),
+  });
+  await client.createProject(created);
+  return created;
+}
+
 export async function listProjects(
   client: ProjectClient = projectClient,
 ): Promise<TerminalProject[]> {
