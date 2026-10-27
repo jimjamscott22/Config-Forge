@@ -62,8 +62,8 @@ export function TranslatePanel({
       {!ready ? (
         <p role="status">Save the project before translating it.</p>
       ) : null}
-      <label className="workflow-field" htmlFor={`${id}-terminal`}>
-        Translate to
+      <div className="workflow-field">
+        <label htmlFor={`${id}-terminal`}>Translate to</label>
         <select
           id={`${id}-terminal`}
           value={terminal}
@@ -80,7 +80,7 @@ export function TranslatePanel({
             </option>
           ))}
         </select>
-      </label>
+      </div>
       <label className="workflow-field" htmlFor={`${id}-name`}>
         New project name
         <input

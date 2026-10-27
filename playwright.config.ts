@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Set when the Chromium build on disk differs from the one Playwright pins.
+const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
@@ -9,6 +12,7 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:1420",
     trace: "on-first-retry",
+    launchOptions: executablePath ? { executablePath } : {},
   },
   projects: [
     {
