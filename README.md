@@ -12,7 +12,8 @@ Ghostty, Kitty, and Alacritty configurations.
 
 The recording runs the interface in a browser with an in-memory stand-in for
 the Rust backend, so no real files are written. `node scripts/record-demo.mjs`
-re-records it as `docs/media/demo.webm`; convert that to the GIF with ffmpeg.
+(Node 22.18+) re-records it as `docs/media/demo.webm`; convert that to the GIF
+with ffmpeg.
 
 ## What it does
 

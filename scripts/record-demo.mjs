@@ -1,6 +1,8 @@
 // Records docs/media/demo.webm by driving the frontend in Chromium with the
 // same in-memory Tauri stand-in the Playwright specs use (no real file writes).
 // Usage: node scripts/record-demo.mjs   (starts `npm run dev` if 1420 is down)
+// Requires Node 22.18+ (or 23.6+): the mock is imported as TypeScript through
+// Node's built-in type stripping. Older Node versions cannot load it.
 import { spawn } from "node:child_process";
 import { mkdirSync, readdirSync, renameSync, rmSync } from "node:fs";
 import path from "node:path";
