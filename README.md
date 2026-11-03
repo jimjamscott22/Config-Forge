@@ -6,6 +6,14 @@ Ghostty, Kitty, and Alacritty configurations.
 
 ![Screenshot of app](docs/img/config-forge-UI.png)
 
+## Demo
+
+![Config Forge demo: import a Ghostty config, edit it visually, translate it to Kitty, and review a safe apply](docs/media/demo.gif)
+
+The recording runs the interface in a browser with an in-memory stand-in for
+the Rust backend, so no real files are written. `node scripts/record-demo.mjs`
+re-records it as `docs/media/demo.webm`; convert that to the GIF with ffmpeg.
+
 ## What it does
 
 - **Create or import** a config. Imports keep comments, ordering, unknown
