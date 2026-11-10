@@ -31,6 +31,11 @@ impl AppState {
         let database = Database::connect_file(&data_dir.join("config-forge.sqlite3")).await?;
         database.migrate().await?;
 
+        crate::commands::files::sweep_environment_staged_candidates(
+            environment.as_ref(),
+            [data_dir.clone()],
+        );
+
         Ok(Self {
             environment,
             database,
@@ -80,5 +85,33 @@ mod tests {
             AppState::initialize(blocker.join("data"), Box::new(TestEnvironment::new())).await;
 
         assert!(matches!(result, Err(AppError::Startup { .. })));
+    }
+
+    #[tokio::test]
+    async fn initialize_sweeps_leftover_staged_validation_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let config_home = dir.path().join("config");
+        let ghostty_dir = config_home.join("ghostty");
+        std::fs::create_dir_all(&ghostty_dir).unwrap();
+        let live_config = ghostty_dir.join("config");
+        std::fs::write(&live_config, "font-size = 12\n").unwrap();
+        let leftover = crate::commands::files::stage_text(&live_config, "font-size = 14\n")
+            .await
+            .unwrap();
+        assert!(leftover.exists());
+
+        let env = TestEnvironment::new()
+            .with("HOME", dir.path().to_str().unwrap())
+            .with("XDG_CONFIG_HOME", config_home.to_str().unwrap());
+
+        AppState::initialize(dir.path().join("app-data"), Box::new(env))
+            .await
+            .unwrap();
+
+        assert!(!leftover.exists());
+        assert_eq!(
+            std::fs::read_to_string(&live_config).unwrap(),
+            "font-size = 12\n"
+        );
     }
 }

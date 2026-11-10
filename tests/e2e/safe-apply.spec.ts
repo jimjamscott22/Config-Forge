@@ -170,31 +170,39 @@ test("a symlinked destination is refused before any review", async ({
 test("a new destination is created without a backup", async ({ page }) => {
   await installTauriMock(page);
   await openSavedProject(page);
-  await reviewApply(page, "/home/me/.config/ghostty/new-config");
+  await reviewApply(page, DESTINATION);
   await page.getByRole("checkbox", { name: /reviewed this diff/ }).check();
   await page.getByRole("button", { name: "Apply to file" }).click();
   await expect(page.getByText(/No backup was needed/)).toBeVisible();
   const state = await readMockState(page);
-  expect(state.files["/home/me/.config/ghostty/new-config"]).toContain(
-    "font-size = 14",
-  );
+  expect(state.files[DESTINATION]).toContain("font-size = 14");
   expect(state.backups).toHaveLength(0);
 });
 
-test("export refuses to replace an existing file", async ({ page }) => {
-  await installTauriMock(page, { files: { [DESTINATION]: LIVE } });
+test("export refuses to replace an existing file or write outside the export directory", async ({
+  page,
+}) => {
+  await installTauriMock(page, {
+    files: {
+      [DESTINATION]: LIVE,
+      "/data/exports/existing.conf": LIVE,
+    },
+  });
   await openSavedProject(page);
   await page.getByLabel("Export path").fill(DESTINATION);
   await page.getByRole("button", { name: "Export config" }).click();
   await expect(
     page.getByText(
-      /Use Apply to write a live project path|destination changed/,
+      /Use Apply to write a live project path|exports must be stored in the app export directory/,
     ),
   ).toBeVisible();
-  await page.getByLabel("Export path").fill("/tmp/exported.conf");
+  await page.getByLabel("Export path").fill("/data/exports/existing.conf");
+  await page.getByRole("button", { name: "Export config" }).click();
+  await expect(page.getByText(/destination changed/)).toBeVisible();
+  await page.getByLabel("Export path").fill("/data/exports/exported.conf");
   await page.getByRole("button", { name: "Export config" }).click();
   await expect(
-    page.getByText(/^Exported \d+ bytes to \/tmp\/exported.conf/),
+    page.getByText(/^Exported \d+ bytes to \/data\/exports\/exported\.conf/),
   ).toBeVisible();
 });
 

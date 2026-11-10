@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Component, Path, PathBuf};
 
 use tauri::State;
@@ -5,6 +6,7 @@ use tokio::io::AsyncWriteExt;
 
 use crate::error::AppError;
 use crate::filesystem::atomic_write::{self, WriteReceipt};
+use crate::filesystem::paths::{self, Environment};
 use crate::state::AppState;
 
 fn invalid(reason: impl Into<String>) -> AppError {
@@ -34,6 +36,32 @@ pub fn require_absolute(path: &Path) -> Result<(), AppError> {
             "path must not contain '..': {}",
             path.display()
         )));
+    }
+    Ok(())
+}
+
+/// Apply targets and staged validation files must match one of the terminal
+/// configuration paths resolved from the environment.
+pub fn check_apply_target(target: &Path, environment: &dyn Environment) -> Result<(), AppError> {
+    require_absolute(target)?;
+    let allowed = paths::all_candidate_config_paths(environment);
+    if !allowed.iter().any(|candidate| candidate == target) {
+        return Err(invalid(format!(
+            "apply target must be a detected terminal config path: {}",
+            target.display()
+        )));
+    }
+    Ok(())
+}
+
+/// Exports may only be written as new files inside the app's export directory.
+pub fn check_export_target(target: &Path, export_dir: &Path) -> Result<(), AppError> {
+    require_absolute(target)?;
+    require_absolute(export_dir)?;
+    if !target.starts_with(export_dir) || target == export_dir {
+        return Err(invalid(
+            "exports must be stored in the app export directory",
+        ));
     }
     Ok(())
 }
@@ -131,7 +159,52 @@ pub fn is_staged_candidate(path: &Path) -> bool {
         && path
             .file_name()
             .and_then(|name| name.to_str())
-            .is_some_and(|name| name.starts_with('.') && name.ends_with(STAGED_SUFFIX))
+            .is_some_and(|name| {
+                name.starts_with('.')
+                    && name.ends_with(STAGED_SUFFIX)
+                    && name.len() > STAGED_SUFFIX.len() + 1
+            })
+}
+
+/// Removes leftover `.cfgforge-validate` regular files in `dirs` without
+/// touching symlinks, directories, or any other files. Missing or unreadable
+/// directories are skipped so startup never fails on an absent config folder.
+pub fn sweep_staged_candidates(dirs: impl IntoIterator<Item = PathBuf>) -> usize {
+    let mut seen = HashSet::new();
+    let mut removed = 0;
+    for dir in dirs {
+        if require_absolute(&dir).is_err() || !seen.insert(dir.clone()) {
+            continue;
+        }
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !is_staged_candidate(&path) {
+                continue;
+            }
+            if !entry.file_type().is_ok_and(|kind| kind.is_file()) {
+                continue;
+            }
+            if std::fs::remove_file(&path).is_ok() {
+                removed += 1;
+            }
+        }
+    }
+    removed
+}
+
+/// Sweeps the parent directories of all detected terminal config paths plus any
+/// additional app directories for leftover staged validation files.
+pub fn sweep_environment_staged_candidates(
+    environment: &dyn Environment,
+    extra_dirs: impl IntoIterator<Item = PathBuf>,
+) -> usize {
+    let candidate_parents = paths::all_candidate_config_paths(environment)
+        .into_iter()
+        .filter_map(|path| path.parent().map(Path::to_path_buf));
+    sweep_staged_candidates(candidate_parents.chain(extra_dirs))
 }
 
 /// Writes the candidate to a new, owner-only hidden file beside `target`.
@@ -194,7 +267,12 @@ pub async fn read_optional_text_file(path: PathBuf) -> Result<Option<String>, Ap
 }
 
 #[tauri::command]
-pub async fn export_config(target: PathBuf, candidate: String) -> Result<WriteReceipt, AppError> {
+pub async fn export_config(
+    state: State<'_, AppState>,
+    target: PathBuf,
+    candidate: String,
+) -> Result<WriteReceipt, AppError> {
+    check_export_target(&target, &state.export_dir)?;
     export_text(&target, &candidate).await
 }
 
@@ -207,7 +285,11 @@ pub struct ApplyConfigRequest {
 }
 
 #[tauri::command]
-pub async fn apply_config(request: ApplyConfigRequest) -> Result<WriteReceipt, AppError> {
+pub async fn apply_config(
+    state: State<'_, AppState>,
+    request: ApplyConfigRequest,
+) -> Result<WriteReceipt, AppError> {
+    check_apply_target(&request.target, state.environment.as_ref())?;
     apply_text(
         &request.target,
         &request.candidate,
@@ -217,7 +299,12 @@ pub async fn apply_config(request: ApplyConfigRequest) -> Result<WriteReceipt, A
 }
 
 #[tauri::command]
-pub async fn stage_candidate(candidate: String, destination: PathBuf) -> Result<PathBuf, AppError> {
+pub async fn stage_candidate(
+    state: State<'_, AppState>,
+    candidate: String,
+    destination: PathBuf,
+) -> Result<PathBuf, AppError> {
+    check_apply_target(&destination, state.environment.as_ref())?;
     stage_text(&destination, &candidate).await
 }
 
@@ -319,5 +406,76 @@ mod tests {
         let target = dir.path().join("missing").join("config");
         assert!(stage_text(&target, "x").await.is_err());
         assert!(stage_text(Path::new("relative"), "x").await.is_err());
+    }
+
+    #[test]
+    fn apply_targets_must_match_detected_terminal_config_paths() {
+        let env = paths::TestEnvironment::new()
+            .with("HOME", "/home/me")
+            .with("XDG_CONFIG_HOME", "/home/me/.config");
+
+        assert!(check_apply_target(Path::new("/home/me/.config/ghostty/config"), &env).is_ok());
+        assert!(check_apply_target(Path::new("/home/me/.config/kitty/kitty.conf"), &env).is_ok());
+        assert!(
+            check_apply_target(Path::new("/home/me/.config/alacritty/alacritty.toml"), &env)
+                .is_ok()
+        );
+        assert!(check_apply_target(Path::new("/home/me/.alacritty.toml"), &env).is_ok());
+
+        assert!(check_apply_target(Path::new("/home/me/.bashrc"), &env).is_err());
+        assert!(check_apply_target(Path::new("/tmp/config"), &env).is_err());
+        assert!(check_apply_target(Path::new("relative/config"), &env).is_err());
+        assert!(check_apply_target(
+            Path::new("/home/me/.config/../.config/ghostty/config"),
+            &env
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn export_targets_must_stay_inside_the_export_directory() {
+        let export_dir = Path::new("/data/exports");
+
+        assert!(check_export_target(Path::new("/data/exports/ghostty.conf"), export_dir).is_ok());
+        assert!(check_export_target(export_dir, export_dir).is_err());
+        assert!(check_export_target(Path::new("/tmp/ghostty.conf"), export_dir).is_err());
+        assert!(
+            check_export_target(Path::new("/data/exports/../escape.conf"), export_dir).is_err()
+        );
+        assert!(check_export_target(Path::new("relative.conf"), export_dir).is_err());
+    }
+
+    #[tokio::test]
+    async fn startup_sweep_removes_only_regular_staged_candidates() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = dir.path().join("config");
+        std::fs::write(&config, "font-size = 13\n").unwrap();
+
+        let staged = stage_text(&config, "font-size = 14\n").await.unwrap();
+        let dotfile = dir.path().join(".bashrc");
+        std::fs::write(&dotfile, "export PATH").unwrap();
+        let atomic_tmp = dir.path().join(".config.123.cfgforge-tmp");
+        std::fs::write(&atomic_tmp, "partial").unwrap();
+        let unhidden = dir.path().join("config.123.cfgforge-validate");
+        std::fs::write(&unhidden, "not hidden").unwrap();
+        let bare_suffix = dir.path().join(".cfgforge-validate");
+        std::fs::write(&bare_suffix, "bare").unwrap();
+        let symlink = dir.path().join(".symlink.123.cfgforge-validate");
+        std::os::unix::fs::symlink(&config, &symlink).unwrap();
+        let subdir = dir.path().join(".dir.123.cfgforge-validate");
+        std::fs::create_dir(&subdir).unwrap();
+
+        let removed =
+            sweep_staged_candidates([dir.path().to_path_buf(), dir.path().join("missing-dir")]);
+
+        assert_eq!(removed, 1);
+        assert!(!staged.exists());
+        assert!(config.exists());
+        assert!(dotfile.exists());
+        assert!(atomic_tmp.exists());
+        assert!(unhidden.exists());
+        assert!(bare_suffix.exists());
+        assert!(symlink.symlink_metadata().is_ok());
+        assert!(subdir.is_dir());
     }
 }

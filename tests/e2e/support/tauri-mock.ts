@@ -126,6 +126,13 @@ export async function installTauriMock(page: Page, seed: MockSeed = {}) {
       },
       read_optional_text_file: ({ path }) => state.files[path] ?? null,
       export_config: ({ target, candidate }) => {
+        if (
+          typeof target !== "string" ||
+          !target.startsWith("/data/exports/") ||
+          target === "/data/exports/" ||
+          target.includes("..")
+        )
+          throw "invalid input: exports must be stored in the app export directory";
         if (target in state.files)
           throw `atomic write to ${target} failed: destination changed since confirmation`;
         state.files[target] = candidate;
@@ -140,6 +147,13 @@ export async function installTauriMock(page: Page, seed: MockSeed = {}) {
         return { path, sha256: hash(content) };
       },
       apply_config: ({ request }) => {
+        const allowed = [
+          "/home/me/.config/ghostty/config",
+          "/home/me/.config/kitty/kitty.conf",
+          "/home/me/.config/alacritty/alacritty.toml",
+        ];
+        if (!allowed.includes(request.target))
+          throw `invalid input: apply target must be a detected terminal config path: ${request.target}`;
         if (state.failApplyWith) throw state.failApplyWith;
         if (state.symlinks.includes(request.target))
           throw `refusing to write through symlink: ${request.target}`;
@@ -152,7 +166,16 @@ export async function installTauriMock(page: Page, seed: MockSeed = {}) {
           sha256: hash(request.candidate),
         };
       },
-      stage_candidate: ({ destination }) => `${destination}.cfgforge-validate`,
+      stage_candidate: ({ destination }) => {
+        const allowed = [
+          "/home/me/.config/ghostty/config",
+          "/home/me/.config/kitty/kitty.conf",
+          "/home/me/.config/alacritty/alacritty.toml",
+        ];
+        if (!allowed.includes(destination))
+          throw `invalid input: apply target must be a detected terminal config path: ${destination}`;
+        return `${destination}.cfgforge-validate`;
+      },
       remove_staged_candidate: () => undefined,
       validate_candidate: ({ request }) => {
         const message = state.validators[request.terminal as "ghostty"];

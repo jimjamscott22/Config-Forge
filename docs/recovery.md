@@ -59,5 +59,7 @@ copy the `backups/` directory out first.
 
 Native validation briefly writes a hidden `.<name>.<id>.cfgforge-validate` file
 next to the destination and removes it afterwards. If the app is killed
-mid-validation one can remain; it is safe to delete. `exports/` holds files you
+mid-validation one can remain; Config Forge sweeps leftover regular
+`.cfgforge-validate` files from detected terminal config directories on the next
+startup, and they are also safe to delete by hand. `exports/` holds files you
 exported. Neither is needed for recovery.

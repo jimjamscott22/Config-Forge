@@ -82,17 +82,21 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
     use tauri::test::{mock_builder, mock_context, noop_assets, INVOKE_KEY};
     use tauri::webview::InvokeRequest;
 
     async fn ipc_state() -> (tempfile::TempDir, tauri::App<tauri::test::MockRuntime>) {
         let dir = tempfile::tempdir().unwrap();
-        let state = AppState::initialize(
-            dir.path().join("data"),
-            Box::new(filesystem::paths::TestEnvironment::new()),
-        )
-        .await
-        .unwrap();
+        let env = filesystem::paths::TestEnvironment::new()
+            .with("HOME", dir.path().to_str().unwrap())
+            .with(
+                "XDG_CONFIG_HOME",
+                dir.path().join(".config").to_str().unwrap(),
+            );
+        let state = AppState::initialize(dir.path().join("data"), Box::new(env))
+            .await
+            .unwrap();
         let app = mock_builder()
             .manage(state)
             .invoke_handler(command_handler())
@@ -123,7 +127,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn registered_commands_reach_the_database_and_filesystem() {
-        let (_dir, app) = ipc_state().await;
+        let (dir, app) = ipc_state().await;
         let app = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
             .build()
             .unwrap();
@@ -139,5 +143,55 @@ mod tests {
         let paths = call(&app, "get_app_paths", serde_json::json!({})).unwrap();
         assert!(paths["backupDir"].as_str().unwrap().ends_with("backups"));
         assert!(call(&app, "no_such_command", serde_json::json!({})).is_err());
+
+        // Apply is restricted to detected terminal config paths.
+        let ghostty_dir = dir.path().join(".config/ghostty");
+        std::fs::create_dir_all(&ghostty_dir).unwrap();
+        let ghostty_config = ghostty_dir.join("config");
+        assert!(call(
+            &app,
+            "apply_config",
+            serde_json::json!({
+                "request": {
+                    "target": dir.path().join("arbitrary.conf"),
+                    "candidate": "font-size = 12\n",
+                    "expectedSource": null
+                }
+            })
+        )
+        .is_err());
+        assert!(call(
+            &app,
+            "apply_config",
+            serde_json::json!({
+                "request": {
+                    "target": ghostty_config,
+                    "candidate": "font-size = 12\n",
+                    "expectedSource": null
+                }
+            })
+        )
+        .is_ok());
+
+        // Export is restricted to the app export directory.
+        let export_dir = PathBuf::from(paths["exportDir"].as_str().unwrap());
+        assert!(call(
+            &app,
+            "export_config",
+            serde_json::json!({
+                "target": dir.path().join("outside-export.conf"),
+                "candidate": "font-size = 12\n"
+            })
+        )
+        .is_err());
+        assert!(call(
+            &app,
+            "export_config",
+            serde_json::json!({
+                "target": export_dir.join("exported.conf"),
+                "candidate": "font-size = 12\n"
+            })
+        )
+        .is_ok());
     }
 }

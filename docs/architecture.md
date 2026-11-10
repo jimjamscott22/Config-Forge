@@ -25,7 +25,7 @@ tests for this behavior green.
 `src/adapters/<terminal>/` implement `TerminalAdapter`
 (`terminal-adapter.ts`): `parse`, `generate`, `validateInternal`,
 `extractPortable`, `createOverrides`, and `supportedSharedPaths`. Ghostty and
-Kitty are line-based; Alacritty is TOML via `@iarna/toml`. Services reach
+Kitty are line-based; Alacritty is TOML via `smol-toml`. Services reach
 adapters only through `registry.ts` (`getAdapter` / `registerAdapter`). See
 [adapter-authoring.md](adapter-authoring.md).
 
@@ -100,14 +100,18 @@ through Tauri's mock runtime.
 ### Write-safety rules
 
 - Paths from the frontend must be absolute and free of `..`.
+- `apply_config` and `stage_candidate` accept only detected terminal
+  configuration paths resolved from the environment (`XDG_CONFIG_HOME` / `HOME`).
 - `apply_config` uses `atomic_replace_if_unchanged`: write a temporary sibling,
   fsync, compare the destination with the content the user reviewed, rename,
   read back, and hash. A changed destination, a destination that appeared after
   being reviewed as new, or a symlink is refused and leaves the original alone.
-- `export_config` creates new files only.
+- `export_config` creates new files only and restricts targets to the app's
+  `exports/` directory.
 - `validate_candidate` accepts only the binary the backend itself resolves from
   `PATH` and a regular file staged by `stage_candidate`, runs it with fixed
   arguments, and never uses a shell. The staged file is a hidden sibling of the
-  destination so relative includes resolve; it is removed afterwards. Alacritty
-  is never launched for validation.
+  destination so relative includes resolve; it is removed afterwards, and any
+  leftover regular `.cfgforge-validate` files in detected config directories are
+  swept on startup. Alacritty is never launched for validation.
 - `create_config_backup` only writes below the app backup directory.
