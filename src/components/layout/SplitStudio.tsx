@@ -1,5 +1,6 @@
 import {
   useId,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -70,9 +71,15 @@ export function SplitStudio({
     ? tabs
     : tabs.filter((tab) => tab !== "controls");
   const selected = !narrow && active === "controls" ? "source" : active;
-  const generated = getAdapter(project.terminal).generate(project);
-  const validation = validateProject(project);
-  const issues = [...generated.issues, ...validation.issues];
+  const generated = useMemo(
+    () => getAdapter(project.terminal).generate(project),
+    [project],
+  );
+  const validation = useMemo(() => validateProject(project), [project]);
+  const issues = useMemo(
+    () => [...generated.issues, ...validation.issues],
+    [generated.issues, validation.issues],
+  );
   const controlsContent = controls ?? (
     <VisualControls
       key={project.id}
@@ -239,6 +246,7 @@ export function SplitStudio({
             <AdvancedSource
               key={project.id}
               project={project}
+              generatedSource={generated.source}
               disabled={busy || !onProjectChange}
               onApply={(next) => onProjectChange?.(next)}
             />
