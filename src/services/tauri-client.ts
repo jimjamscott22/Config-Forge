@@ -1,17 +1,18 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { DetectedInstallation } from "../adapters/terminal-adapter";
+import type {
+  DetectedInstallation,
+  NativeValidationRequest,
+} from "../adapters/terminal-adapter";
+import type { TerminalProject } from "../domain/project";
+import type { TerminalId } from "../domain/shared-config";
+import type { ProjectSnapshot } from "../domain/snapshot";
+import type { ConfigTemplate } from "../domain/template";
+import type { ValidationResult } from "../domain/validation";
+import type { AtomicWriteRequest, BackupRequest } from "./apply-service";
 
 export async function detectTerminals(): Promise<DetectedInstallation[]> {
   return invoke("detect_terminals");
 }
-
-import type { TerminalProject } from "../domain/project";
-import type { ProjectSnapshot } from "../domain/snapshot";
-import type { TerminalId } from "../domain/shared-config";
-import type { ConfigTemplate } from "../domain/template";
-import type { NativeValidationRequest } from "../adapters/terminal-adapter";
-import type { ValidationResult } from "../domain/validation";
-import type { AtomicWriteRequest, BackupRequest } from "./apply-service";
 
 export interface PathInfo {
   exists: boolean;

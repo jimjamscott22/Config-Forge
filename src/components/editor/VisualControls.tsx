@@ -1,10 +1,9 @@
 import type { TerminalProject } from "../../domain/project";
 import type { SharedConfig } from "../../domain/shared-config";
-import { AppearanceControls } from "./AppearanceControls";
-import { BehaviorControls } from "./BehaviorControls";
 import { ColorControls } from "./ColorControls";
-import { FontControls } from "./FontControls";
+import { FieldControls } from "./FieldControl";
 import { UnmappedSettings } from "./UnmappedSettings";
+import { appearanceFields, behaviorFields, fontFields } from "./control-fields";
 
 export function VisualControls({
   project,
@@ -42,11 +41,11 @@ export function VisualControls({
       </p>
       <details className="control-section" open>
         <summary>Typography</summary>
-        <FontControls {...props} />
+        <FieldControls fields={fontFields} {...props} />
       </details>
       <details className="control-section">
         <summary>Window &amp; cursor</summary>
-        <AppearanceControls {...props} />
+        <FieldControls fields={appearanceFields} {...props} />
       </details>
       <details className="control-section">
         <summary>Colors</summary>
@@ -54,7 +53,7 @@ export function VisualControls({
       </details>
       <details className="control-section">
         <summary>Behavior</summary>
-        <BehaviorControls {...props} />
+        <FieldControls fields={behaviorFields} {...props} />
       </details>
       <details className="control-section">
         <summary>Preserved settings</summary>
