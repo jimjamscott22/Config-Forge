@@ -1,4 +1,3 @@
-import { stringify as stringifyToml } from "@iarna/toml";
 import type { AnsiColorName, SharedConfig } from "../../domain/shared-config";
 
 type PortableValue = string | number | boolean | PaddingValue;
@@ -224,7 +223,7 @@ function parseBellDuration(value: unknown): ParsedValue<boolean> {
 }
 
 function serializeString(value: string): string {
-  return stringifyToml.value(value);
+  return JSON.stringify(value);
 }
 
 function serializeNumber(value: number): string {
