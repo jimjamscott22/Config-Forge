@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::path::{Component, Path, PathBuf};
+use std::time::{Duration, SystemTime};
 
 use tauri::State;
 use tokio::io::AsyncWriteExt;
@@ -151,6 +152,12 @@ pub async fn apply_text(
 /// entries resolve exactly as they will after the real write.
 const STAGED_SUFFIX: &str = ".cfgforge-validate";
 
+/// Maximum age for an active validation staging file. Native validation enforces
+/// a 5-second timeout and removes its staging file in a `finally` block before
+/// user confirmation, so anything older than 60 seconds is provably stale even
+/// if its owning PID was later recycled or omitted.
+pub const STALE_STAGED_AGE: Duration = Duration::from_secs(60);
+
 /// True only for names `stage_text` produces: absolute, no `..`, hidden, and
 /// ending in the staging suffix. Used to bound what may be validated or removed.
 pub fn is_staged_candidate(path: &Path) -> bool {
@@ -166,10 +173,86 @@ pub fn is_staged_candidate(path: &Path) -> bool {
             })
 }
 
-/// Removes leftover `.cfgforge-validate` regular files in `dirs` without
-/// touching symlinks, directories, or any other files. Missing or unreadable
-/// directories are skipped so startup never fails on an absent config folder.
+/// Extracts the `pid-<u32>` owner tag embedded by `stage_text`, if present.
+fn staged_owner_pid(path: &Path) -> Option<u32> {
+    let name = path.file_name()?.to_str()?;
+    let stem = name.strip_suffix(STAGED_SUFFIX)?;
+    let (before_uuid, _uuid) = stem.rsplit_once('.')?;
+    let (_prefix, pid_segment) = before_uuid.rsplit_once('.')?;
+    pid_segment.strip_prefix("pid-")?.parse::<u32>().ok()
+}
+
+fn process_is_alive(pid: u32) -> bool {
+    if pid == 0 {
+        return false;
+    }
+    if pid == std::process::id() {
+        return true;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let proc_root = Path::new("/proc");
+        if !proc_root.is_dir() {
+            return true;
+        }
+        let proc_dir = proc_root.join(pid.to_string());
+        if !proc_dir.exists() {
+            return false;
+        }
+        if let Ok(stat) = std::fs::read_to_string(proc_dir.join("stat")) {
+            if let Some((_, rest)) = stat.rsplit_once(')') {
+                if let Some(state) = rest.split_whitespace().next() {
+                    return !matches!(state, "Z" | "X" | "x");
+                }
+            }
+        }
+        true
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        true
+    }
+}
+
+/// A staged candidate is safe to sweep when either:
+/// 1. Its modification time is at least `STALE_STAGED_AGE` behind `now` (well
+///    past the 5-second native validator timeout), or
+/// 2. Its filename records an owning `pid-<u32>` whose process is no longer
+///    running.
+///
+/// Fresh candidates whose owner process is still alive (or whose filename has
+/// no PID tag) are treated as active and left alone.
+fn is_abandoned_staged_candidate(
+    path: &Path,
+    metadata: &std::fs::Metadata,
+    now: SystemTime,
+) -> bool {
+    let is_stale = metadata
+        .modified()
+        .ok()
+        .and_then(|modified| now.duration_since(modified).ok())
+        .is_some_and(|age| age >= STALE_STAGED_AGE);
+    if is_stale {
+        return true;
+    }
+    match staged_owner_pid(path) {
+        Some(pid) => !process_is_alive(pid),
+        None => false,
+    }
+}
+
+/// Removes abandoned `.cfgforge-validate` regular files in `dirs` without
+/// touching active validation files, symlinks, directories, or any other files.
+/// Missing or unreadable directories are skipped so startup never fails on an
+/// absent config folder.
 pub fn sweep_staged_candidates(dirs: impl IntoIterator<Item = PathBuf>) -> usize {
+    sweep_staged_candidates_at(dirs, SystemTime::now())
+}
+
+pub fn sweep_staged_candidates_at(
+    dirs: impl IntoIterator<Item = PathBuf>,
+    now: SystemTime,
+) -> usize {
     let mut seen = HashSet::new();
     let mut removed = 0;
     for dir in dirs {
@@ -184,7 +267,13 @@ pub fn sweep_staged_candidates(dirs: impl IntoIterator<Item = PathBuf>) -> usize
             if !is_staged_candidate(&path) {
                 continue;
             }
-            if !entry.file_type().is_ok_and(|kind| kind.is_file()) {
+            let Ok(metadata) = std::fs::symlink_metadata(&path) else {
+                continue;
+            };
+            if !metadata.file_type().is_file() {
+                continue;
+            }
+            if !is_abandoned_staged_candidate(&path, &metadata, now) {
                 continue;
             }
             if std::fs::remove_file(&path).is_ok() {
@@ -217,7 +306,11 @@ pub async fn stage_text(target: &Path, candidate: &str) -> Result<PathBuf, AppEr
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or("config");
-    let path = parent.join(format!(".{name}.{}{STAGED_SUFFIX}", uuid::Uuid::new_v4()));
+    let pid = std::process::id();
+    let path = parent.join(format!(
+        ".{name}.pid-{pid}.{}{STAGED_SUFFIX}",
+        uuid::Uuid::new_v4()
+    ));
     let mut file = tokio::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -445,6 +538,16 @@ mod tests {
         assert!(check_export_target(Path::new("relative.conf"), export_dir).is_err());
     }
 
+    fn backdate_past_stale_threshold(path: &Path) {
+        let stale_mtime = SystemTime::now() - STALE_STAGED_AGE - Duration::from_secs(5);
+        std::fs::File::options()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_modified(stale_mtime)
+            .unwrap();
+    }
+
     #[tokio::test]
     async fn startup_sweep_removes_only_regular_staged_candidates() {
         let dir = tempfile::tempdir().unwrap();
@@ -452,6 +555,7 @@ mod tests {
         std::fs::write(&config, "font-size = 13\n").unwrap();
 
         let staged = stage_text(&config, "font-size = 14\n").await.unwrap();
+        backdate_past_stale_threshold(&staged);
         let dotfile = dir.path().join(".bashrc");
         std::fs::write(&dotfile, "export PATH").unwrap();
         let atomic_tmp = dir.path().join(".config.123.cfgforge-tmp");
@@ -477,5 +581,46 @@ mod tests {
         assert!(bare_suffix.exists());
         assert!(symlink.symlink_metadata().is_ok());
         assert!(subdir.is_dir());
+    }
+
+    #[tokio::test]
+    async fn freshly_staged_active_candidate_survives_sweep_while_stale_and_abandoned_are_removed()
+    {
+        let dir = tempfile::tempdir().unwrap();
+        let config = dir.path().join("kitty.conf");
+        std::fs::write(&config, "font_size 12\n").unwrap();
+
+        let active = stage_text(&config, "font_size 13\n").await.unwrap();
+        assert_eq!(staged_owner_pid(&active), Some(std::process::id()));
+
+        let stale = stage_text(&config, "font_size 14\n").await.unwrap();
+        backdate_past_stale_threshold(&stale);
+
+        let mut exited_child = std::process::Command::new("true").spawn().unwrap();
+        let exited_pid = exited_child.id();
+        exited_child.wait().unwrap();
+        let dead_pid = dir.path().join(format!(
+            ".kitty.conf.pid-{exited_pid}.{}{STAGED_SUFFIX}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::write(&dead_pid, "font_size 15\n").unwrap();
+
+        let fresh_untagged = dir.path().join(".kitty.conf.legacy-id.cfgforge-validate");
+        std::fs::write(&fresh_untagged, "font_size 16\n").unwrap();
+
+        let removed = sweep_staged_candidates([dir.path().to_path_buf()]);
+
+        assert_eq!(removed, 2);
+        assert!(active.exists());
+        assert!(fresh_untagged.exists());
+        assert!(!stale.exists());
+        assert!(!dead_pid.exists());
+
+        // Once the age threshold passes, untagged or leaked files are swept too.
+        let future = SystemTime::now() + STALE_STAGED_AGE + Duration::from_secs(1);
+        let removed_later = sweep_staged_candidates_at([dir.path().to_path_buf()], future);
+        assert_eq!(removed_later, 2);
+        assert!(!active.exists());
+        assert!(!fresh_untagged.exists());
     }
 }

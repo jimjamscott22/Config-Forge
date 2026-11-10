@@ -83,9 +83,11 @@ database; the frontend likewise shows a retryable startup error.
 `read_text_file`, `read_optional_text_file`, `export_config`, `apply_config`,
 `stage_candidate`, `remove_staged_candidate`, `validate_candidate`.
 
-The `fs` and `shell` plugins are not registered; the dialog plugin is used only
-for the startup error. A smoke test (`lib.rs`) drives the registered handler
-through Tauri's mock runtime.
+The `fs` and `shell` plugins are not registered; a single-instance Unix-socket
+plugin in `lib.rs` focuses the existing `"main"` window and exits before startup
+initialization if a second instance is launched, and the dialog plugin is used
+only for the startup error. A smoke test (`lib.rs`) drives the registered
+handler through Tauri's mock runtime.
 
 ### Persistence rules
 
@@ -111,7 +113,9 @@ through Tauri's mock runtime.
 - `validate_candidate` accepts only the binary the backend itself resolves from
   `PATH` and a regular file staged by `stage_candidate`, runs it with fixed
   arguments, and never uses a shell. The staged file is a hidden sibling of the
-  destination so relative includes resolve; it is removed afterwards, and any
-  leftover regular `.cfgforge-validate` files in detected config directories are
-  swept on startup. Alacritty is never launched for validation.
+  destination (`pid-<pid>` tagged) so relative includes resolve; it is removed
+  afterwards, and any abandoned regular `.cfgforge-validate` files (whose owner
+  PID has exited or whose age exceeds 60 seconds) in detected config directories
+  are swept on startup while active candidates are preserved. Alacritty is never
+  launched for validation.
 - `create_config_backup` only writes below the app backup directory.

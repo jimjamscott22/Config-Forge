@@ -196,8 +196,10 @@ claimed built-in), `get_app_paths`, `inspect_path`, `read_text_file`,
 `read_optional_text_file`, `export_config` (new files inside the app `exports/`
 directory only), `apply_config` (checked atomic replace restricted to detected
 terminal config paths), `stage_candidate`/`remove_staged_candidate` (restricted
-to detected terminal config paths, with leftover `.cfgforge-validate` files
-swept on startup), and
+to detected terminal config paths, with abandoned `.cfgforge-validate` files
+whose owner PID exited or whose age exceeds 60 seconds swept on startup and
+single-instance desktop launch enforced via a Unix-socket guard in `lib.rs`),
+and
 `validate_candidate`, which now accepts only the binary the backend resolves
 from `PATH` and a regular file made by `stage_candidate` (a hidden sibling of
 the destination). Ghostty is validated with `--config-file=<path>` (one
