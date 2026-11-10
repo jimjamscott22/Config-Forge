@@ -5,8 +5,6 @@ const tauriDevHost = process.env.TAURI_DEV_HOST;
 
 export default defineConfig({
   plugins: [react()],
-  // @iarna/toml uses global.Date/BigInt; browsers expose them through globalThis.
-  define: { global: "globalThis" },
   clearScreen: false,
   server: {
     host: tauriDevHost || false,
@@ -30,6 +28,12 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
+      thresholds: {
+        statements: 88,
+        branches: 80,
+        functions: 88,
+        lines: 88,
+      },
     },
   },
 });
