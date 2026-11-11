@@ -22,17 +22,20 @@ interface Parsed {
 
 export function AdvancedSource({
   project,
+  generatedSource,
   disabled = false,
   onApply,
 }: {
   project: TerminalProject;
+  generatedSource?: string;
   disabled?: boolean;
   onApply(project: TerminalProject): void;
 }) {
   const id = useId();
   const generated = useMemo(
-    () => getAdapter(project.terminal).generate(project).source,
-    [project],
+    () =>
+      generatedSource ?? getAdapter(project.terminal).generate(project).source,
+    [generatedSource, project],
   );
   const [draft, setDraft] = useState<Draft | null>(null);
   const [parsed, setParsed] = useState<Parsed | null>(null);

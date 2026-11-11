@@ -83,8 +83,8 @@ Native validation is implemented once, in `src-tauri/src/process/native_validati
   frontend and editor text never supply an executable or flags.
 - The executable must be the binary found on `PATH` for that terminal and the
   candidate must be a regular file created by `stage_candidate` (a hidden
-  `.<name>.<id>.cfgforge-validate` file beside the destination, so relative
-  includes resolve) (`commands/validation.rs::check_request`).
+  `.<name>.pid-<pid>.<id>.cfgforge-validate` file beside the destination, so
+  relative includes resolve) (`commands/validation.rs::check_request`).
 - Run without a shell, with stdin closed, a timeout, and capped output.
 - If a terminal has no side-effect-free validation mode, return `None` from
   `validator_args` so native validation is reported as unavailable instead of

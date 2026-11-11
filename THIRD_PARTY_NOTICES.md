@@ -17,10 +17,10 @@ palettes or attribution.
 | @codemirror/legacy-modes | MIT               |
 | @codemirror/state        | MIT               |
 | @codemirror/view         | MIT               |
-| @iarna/toml              | ISC               |
 | @tauri-apps/api          | Apache-2.0 OR MIT |
 | diff (jsdiff)            | BSD-3-Clause      |
 | react, react-dom         | MIT               |
+| smol-toml                | BSD-3-Clause      |
 | zod                      | MIT               |
 | zustand                  | MIT               |
 

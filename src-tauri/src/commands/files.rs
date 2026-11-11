@@ -1,10 +1,13 @@
+use std::collections::HashSet;
 use std::path::{Component, Path, PathBuf};
+use std::time::{Duration, SystemTime};
 
 use tauri::State;
 use tokio::io::AsyncWriteExt;
 
 use crate::error::AppError;
 use crate::filesystem::atomic_write::{self, WriteReceipt};
+use crate::filesystem::paths::{self, Environment};
 use crate::state::AppState;
 
 fn invalid(reason: impl Into<String>) -> AppError {
@@ -34,6 +37,32 @@ pub fn require_absolute(path: &Path) -> Result<(), AppError> {
             "path must not contain '..': {}",
             path.display()
         )));
+    }
+    Ok(())
+}
+
+/// Apply targets and staged validation files must match one of the terminal
+/// configuration paths resolved from the environment.
+pub fn check_apply_target(target: &Path, environment: &dyn Environment) -> Result<(), AppError> {
+    require_absolute(target)?;
+    let allowed = paths::all_candidate_config_paths(environment);
+    if !allowed.iter().any(|candidate| candidate == target) {
+        return Err(invalid(format!(
+            "apply target must be a detected terminal config path: {}",
+            target.display()
+        )));
+    }
+    Ok(())
+}
+
+/// Exports may only be written as new files inside the app's export directory.
+pub fn check_export_target(target: &Path, export_dir: &Path) -> Result<(), AppError> {
+    require_absolute(target)?;
+    require_absolute(export_dir)?;
+    if !target.starts_with(export_dir) || target == export_dir {
+        return Err(invalid(
+            "exports must be stored in the app export directory",
+        ));
     }
     Ok(())
 }
@@ -123,6 +152,12 @@ pub async fn apply_text(
 /// entries resolve exactly as they will after the real write.
 const STAGED_SUFFIX: &str = ".cfgforge-validate";
 
+/// Maximum age for an active validation staging file. Native validation enforces
+/// a 5-second timeout and removes its staging file in a `finally` block before
+/// user confirmation, so anything older than 60 seconds is provably stale even
+/// if its owning PID was later recycled or omitted.
+pub const STALE_STAGED_AGE: Duration = Duration::from_secs(60);
+
 /// True only for names `stage_text` produces: absolute, no `..`, hidden, and
 /// ending in the staging suffix. Used to bound what may be validated or removed.
 pub fn is_staged_candidate(path: &Path) -> bool {
@@ -131,7 +166,134 @@ pub fn is_staged_candidate(path: &Path) -> bool {
         && path
             .file_name()
             .and_then(|name| name.to_str())
-            .is_some_and(|name| name.starts_with('.') && name.ends_with(STAGED_SUFFIX))
+            .is_some_and(|name| {
+                name.starts_with('.')
+                    && name.ends_with(STAGED_SUFFIX)
+                    && name.len() > STAGED_SUFFIX.len() + 1
+            })
+}
+
+/// Extracts the `pid-<u32>` owner tag embedded by `stage_text`, if present.
+fn staged_owner_pid(path: &Path) -> Option<u32> {
+    let name = path.file_name()?.to_str()?;
+    let stem = name.strip_suffix(STAGED_SUFFIX)?;
+    let (before_uuid, _uuid) = stem.rsplit_once('.')?;
+    let (_prefix, pid_segment) = before_uuid.rsplit_once('.')?;
+    pid_segment.strip_prefix("pid-")?.parse::<u32>().ok()
+}
+
+fn process_is_alive(pid: u32) -> bool {
+    if pid == 0 {
+        return false;
+    }
+    if pid == std::process::id() {
+        return true;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let proc_root = Path::new("/proc");
+        if !proc_root.is_dir() {
+            return true;
+        }
+        let proc_dir = proc_root.join(pid.to_string());
+        if !proc_dir.exists() {
+            return false;
+        }
+        if let Ok(stat) = std::fs::read_to_string(proc_dir.join("stat")) {
+            if let Some((_, rest)) = stat.rsplit_once(')') {
+                if let Some(state) = rest.split_whitespace().next() {
+                    return !matches!(state, "Z" | "X" | "x");
+                }
+            }
+        }
+        true
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        true
+    }
+}
+
+/// A staged candidate is safe to sweep when either:
+/// 1. Its modification time is at least `STALE_STAGED_AGE` behind `now` (well
+///    past the 5-second native validator timeout), or
+/// 2. Its filename records an owning `pid-<u32>` whose process is no longer
+///    running.
+///
+/// Fresh candidates whose owner process is still alive (or whose filename has
+/// no PID tag) are treated as active and left alone.
+fn is_abandoned_staged_candidate(
+    path: &Path,
+    metadata: &std::fs::Metadata,
+    now: SystemTime,
+) -> bool {
+    let is_stale = metadata
+        .modified()
+        .ok()
+        .and_then(|modified| now.duration_since(modified).ok())
+        .is_some_and(|age| age >= STALE_STAGED_AGE);
+    if is_stale {
+        return true;
+    }
+    match staged_owner_pid(path) {
+        Some(pid) => !process_is_alive(pid),
+        None => false,
+    }
+}
+
+/// Removes abandoned `.cfgforge-validate` regular files in `dirs` without
+/// touching active validation files, symlinks, directories, or any other files.
+/// Missing or unreadable directories are skipped so startup never fails on an
+/// absent config folder.
+pub fn sweep_staged_candidates(dirs: impl IntoIterator<Item = PathBuf>) -> usize {
+    sweep_staged_candidates_at(dirs, SystemTime::now())
+}
+
+pub fn sweep_staged_candidates_at(
+    dirs: impl IntoIterator<Item = PathBuf>,
+    now: SystemTime,
+) -> usize {
+    let mut seen = HashSet::new();
+    let mut removed = 0;
+    for dir in dirs {
+        if require_absolute(&dir).is_err() || !seen.insert(dir.clone()) {
+            continue;
+        }
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !is_staged_candidate(&path) {
+                continue;
+            }
+            let Ok(metadata) = std::fs::symlink_metadata(&path) else {
+                continue;
+            };
+            if !metadata.file_type().is_file() {
+                continue;
+            }
+            if !is_abandoned_staged_candidate(&path, &metadata, now) {
+                continue;
+            }
+            if std::fs::remove_file(&path).is_ok() {
+                removed += 1;
+            }
+        }
+    }
+    removed
+}
+
+/// Sweeps the parent directories of all detected terminal config paths plus any
+/// additional app directories for leftover staged validation files.
+pub fn sweep_environment_staged_candidates(
+    environment: &dyn Environment,
+    extra_dirs: impl IntoIterator<Item = PathBuf>,
+) -> usize {
+    let candidate_parents = paths::all_candidate_config_paths(environment)
+        .into_iter()
+        .filter_map(|path| path.parent().map(Path::to_path_buf));
+    sweep_staged_candidates(candidate_parents.chain(extra_dirs))
 }
 
 /// Writes the candidate to a new, owner-only hidden file beside `target`.
@@ -144,7 +306,11 @@ pub async fn stage_text(target: &Path, candidate: &str) -> Result<PathBuf, AppEr
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or("config");
-    let path = parent.join(format!(".{name}.{}{STAGED_SUFFIX}", uuid::Uuid::new_v4()));
+    let pid = std::process::id();
+    let path = parent.join(format!(
+        ".{name}.pid-{pid}.{}{STAGED_SUFFIX}",
+        uuid::Uuid::new_v4()
+    ));
     let mut file = tokio::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -194,7 +360,12 @@ pub async fn read_optional_text_file(path: PathBuf) -> Result<Option<String>, Ap
 }
 
 #[tauri::command]
-pub async fn export_config(target: PathBuf, candidate: String) -> Result<WriteReceipt, AppError> {
+pub async fn export_config(
+    state: State<'_, AppState>,
+    target: PathBuf,
+    candidate: String,
+) -> Result<WriteReceipt, AppError> {
+    check_export_target(&target, &state.export_dir)?;
     export_text(&target, &candidate).await
 }
 
@@ -207,7 +378,11 @@ pub struct ApplyConfigRequest {
 }
 
 #[tauri::command]
-pub async fn apply_config(request: ApplyConfigRequest) -> Result<WriteReceipt, AppError> {
+pub async fn apply_config(
+    state: State<'_, AppState>,
+    request: ApplyConfigRequest,
+) -> Result<WriteReceipt, AppError> {
+    check_apply_target(&request.target, state.environment.as_ref())?;
     apply_text(
         &request.target,
         &request.candidate,
@@ -217,7 +392,12 @@ pub async fn apply_config(request: ApplyConfigRequest) -> Result<WriteReceipt, A
 }
 
 #[tauri::command]
-pub async fn stage_candidate(candidate: String, destination: PathBuf) -> Result<PathBuf, AppError> {
+pub async fn stage_candidate(
+    state: State<'_, AppState>,
+    candidate: String,
+    destination: PathBuf,
+) -> Result<PathBuf, AppError> {
+    check_apply_target(&destination, state.environment.as_ref())?;
     stage_text(&destination, &candidate).await
 }
 
@@ -319,5 +499,128 @@ mod tests {
         let target = dir.path().join("missing").join("config");
         assert!(stage_text(&target, "x").await.is_err());
         assert!(stage_text(Path::new("relative"), "x").await.is_err());
+    }
+
+    #[test]
+    fn apply_targets_must_match_detected_terminal_config_paths() {
+        let env = paths::TestEnvironment::new()
+            .with("HOME", "/home/me")
+            .with("XDG_CONFIG_HOME", "/home/me/.config");
+
+        assert!(check_apply_target(Path::new("/home/me/.config/ghostty/config"), &env).is_ok());
+        assert!(check_apply_target(Path::new("/home/me/.config/kitty/kitty.conf"), &env).is_ok());
+        assert!(
+            check_apply_target(Path::new("/home/me/.config/alacritty/alacritty.toml"), &env)
+                .is_ok()
+        );
+        assert!(check_apply_target(Path::new("/home/me/.alacritty.toml"), &env).is_ok());
+
+        assert!(check_apply_target(Path::new("/home/me/.bashrc"), &env).is_err());
+        assert!(check_apply_target(Path::new("/tmp/config"), &env).is_err());
+        assert!(check_apply_target(Path::new("relative/config"), &env).is_err());
+        assert!(check_apply_target(
+            Path::new("/home/me/.config/../.config/ghostty/config"),
+            &env
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn export_targets_must_stay_inside_the_export_directory() {
+        let export_dir = Path::new("/data/exports");
+
+        assert!(check_export_target(Path::new("/data/exports/ghostty.conf"), export_dir).is_ok());
+        assert!(check_export_target(export_dir, export_dir).is_err());
+        assert!(check_export_target(Path::new("/tmp/ghostty.conf"), export_dir).is_err());
+        assert!(
+            check_export_target(Path::new("/data/exports/../escape.conf"), export_dir).is_err()
+        );
+        assert!(check_export_target(Path::new("relative.conf"), export_dir).is_err());
+    }
+
+    fn backdate_past_stale_threshold(path: &Path) {
+        let stale_mtime = SystemTime::now() - STALE_STAGED_AGE - Duration::from_secs(5);
+        std::fs::File::options()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_modified(stale_mtime)
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn startup_sweep_removes_only_regular_staged_candidates() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = dir.path().join("config");
+        std::fs::write(&config, "font-size = 13\n").unwrap();
+
+        let staged = stage_text(&config, "font-size = 14\n").await.unwrap();
+        backdate_past_stale_threshold(&staged);
+        let dotfile = dir.path().join(".bashrc");
+        std::fs::write(&dotfile, "export PATH").unwrap();
+        let atomic_tmp = dir.path().join(".config.123.cfgforge-tmp");
+        std::fs::write(&atomic_tmp, "partial").unwrap();
+        let unhidden = dir.path().join("config.123.cfgforge-validate");
+        std::fs::write(&unhidden, "not hidden").unwrap();
+        let bare_suffix = dir.path().join(".cfgforge-validate");
+        std::fs::write(&bare_suffix, "bare").unwrap();
+        let symlink = dir.path().join(".symlink.123.cfgforge-validate");
+        std::os::unix::fs::symlink(&config, &symlink).unwrap();
+        let subdir = dir.path().join(".dir.123.cfgforge-validate");
+        std::fs::create_dir(&subdir).unwrap();
+
+        let removed =
+            sweep_staged_candidates([dir.path().to_path_buf(), dir.path().join("missing-dir")]);
+
+        assert_eq!(removed, 1);
+        assert!(!staged.exists());
+        assert!(config.exists());
+        assert!(dotfile.exists());
+        assert!(atomic_tmp.exists());
+        assert!(unhidden.exists());
+        assert!(bare_suffix.exists());
+        assert!(symlink.symlink_metadata().is_ok());
+        assert!(subdir.is_dir());
+    }
+
+    #[tokio::test]
+    async fn freshly_staged_active_candidate_survives_sweep_while_stale_and_abandoned_are_removed()
+    {
+        let dir = tempfile::tempdir().unwrap();
+        let config = dir.path().join("kitty.conf");
+        std::fs::write(&config, "font_size 12\n").unwrap();
+
+        let active = stage_text(&config, "font_size 13\n").await.unwrap();
+        assert_eq!(staged_owner_pid(&active), Some(std::process::id()));
+
+        let stale = stage_text(&config, "font_size 14\n").await.unwrap();
+        backdate_past_stale_threshold(&stale);
+
+        let mut exited_child = std::process::Command::new("true").spawn().unwrap();
+        let exited_pid = exited_child.id();
+        exited_child.wait().unwrap();
+        let dead_pid = dir.path().join(format!(
+            ".kitty.conf.pid-{exited_pid}.{}{STAGED_SUFFIX}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::write(&dead_pid, "font_size 15\n").unwrap();
+
+        let fresh_untagged = dir.path().join(".kitty.conf.legacy-id.cfgforge-validate");
+        std::fs::write(&fresh_untagged, "font_size 16\n").unwrap();
+
+        let removed = sweep_staged_candidates([dir.path().to_path_buf()]);
+
+        assert_eq!(removed, 2);
+        assert!(active.exists());
+        assert!(fresh_untagged.exists());
+        assert!(!stale.exists());
+        assert!(!dead_pid.exists());
+
+        // Once the age threshold passes, untagged or leaked files are swept too.
+        let future = SystemTime::now() + STALE_STAGED_AGE + Duration::from_secs(1);
+        let removed_later = sweep_staged_candidates_at([dir.path().to_path_buf()], future);
+        assert_eq!(removed_later, 2);
+        assert!(!active.exists());
+        assert!(!fresh_untagged.exists());
     }
 }

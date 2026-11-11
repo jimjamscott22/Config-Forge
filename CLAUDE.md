@@ -30,7 +30,7 @@ Full check before a milestone: format:check, lint, typecheck, test, build, cargo
 
 **The shared-model pivot.** Every terminal config is parsed into a portable `SharedConfig` (`src/domain/shared-config.ts`, zod) *plus* terminal-specific `overrides` *plus* a `DocumentNode[]` tree (`src/domain/document-node.ts`) that retains comments, blanks, ordering, unknown settings, includes, and malformed lines. The visual editor edits the shared model; the adapter re-generates source from the node tree, patching only modified nodes. This is how unsupported/unknown content survives round-trips — any change touching parse/generate must preserve it (there are regression tests for this; keep them green).
 
-**Adapters** (`src/adapters/<terminal>/`) implement `TerminalAdapter` (`terminal-adapter.ts`): `parse`, `generate`, `validateInternal`, `extractPortable`, `createOverrides`, `supportedSharedPaths`. Each terminal has its own parser/writer/mappings (Alacritty is TOML via `@iarna/toml`; Ghostty/Kitty are line-based). Adapters are looked up through `registry.ts` (`getAdapter`/`registerAdapter`), not imported directly by services.
+**Adapters** (`src/adapters/<terminal>/`) implement `TerminalAdapter` (`terminal-adapter.ts`): `parse`, `generate`, `validateInternal`, `extractPortable`, `createOverrides`, `supportedSharedPaths`. Each terminal has its own parser/writer/mappings (Alacritty is TOML via `smol-toml`; Ghostty/Kitty are line-based). Adapters are looked up through `registry.ts` (`getAdapter`/`registerAdapter`), not imported directly by services.
 
 **Services** (`src/services/`) hold orchestration and are tested with injected clients:
 - `tauri-client.ts` — the only place that calls `invoke()`; `ProjectClient` is the typed IPC contract.
@@ -61,7 +61,6 @@ installed Chromium differs from Playwright's pin.
 - Strict TS, two-space indent, double quotes, semicolons (Prettier/ESLint enforce). PascalCase components/types, camelCase functions, kebab-case module filenames. Rust: rustfmt + snake_case. Preserve CSS tokens in `src/styles/tokens.css`.
 - Tests are colocated (`*.test.ts[x]`, Rust inline `#[cfg(test)]`); Playwright specs are `tests/e2e/*.spec.ts`. Use `fixtures/` or temp dirs — never personal config files.
 - Commits: `feat:` / `docs:` / `chore:` prefixes, scoped. Preserve unrelated worktree changes.
-- `vite.config.ts` maps `global` → `globalThis` for `@iarna/toml`; keep it.
 
 ## Project preferences (from AGENTS.md)
 

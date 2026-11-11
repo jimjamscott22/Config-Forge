@@ -116,6 +116,21 @@ pub fn candidate_config_paths(terminal: TerminalId, env: &dyn Environment) -> Ve
     paths
 }
 
+/// Every candidate config path across all supported terminals, deduplicated
+/// in terminal order.
+pub fn all_candidate_config_paths(env: &dyn Environment) -> Vec<PathBuf> {
+    let mut seen = HashSet::new();
+    let mut paths = Vec::new();
+    for terminal in TerminalId::ALL {
+        for path in candidate_config_paths(terminal, env) {
+            if seen.insert(path.clone()) {
+                paths.push(path);
+            }
+        }
+    }
+    paths
+}
+
 fn describe_path(path: PathBuf) -> ConfigPathCandidate {
     let is_symlink = std::fs::symlink_metadata(&path)
         .map(|metadata| metadata.file_type().is_symlink())
@@ -208,6 +223,23 @@ mod tests {
         let paths = candidate_config_paths(TerminalId::Kitty, &env);
 
         assert_eq!(paths.len(), 1);
+    }
+
+    #[test]
+    fn all_candidate_paths_cover_every_supported_terminal() {
+        let env = TestEnvironment::new()
+            .with("HOME", "/home/jamie")
+            .with("XDG_CONFIG_HOME", "/mnt/dotfiles/config");
+
+        let paths = all_candidate_config_paths(&env);
+
+        assert!(paths.contains(&PathBuf::from("/mnt/dotfiles/config/ghostty/config")));
+        assert!(paths.contains(&PathBuf::from("/home/jamie/.config/ghostty/config")));
+        assert!(paths.contains(&PathBuf::from("/mnt/dotfiles/config/kitty/kitty.conf")));
+        assert!(paths.contains(&PathBuf::from(
+            "/mnt/dotfiles/config/alacritty/alacritty.toml"
+        )));
+        assert!(paths.contains(&PathBuf::from("/home/jamie/.alacritty.toml")));
     }
 
     #[test]

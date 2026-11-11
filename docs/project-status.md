@@ -1,6 +1,6 @@
 # Config Forge Project Status
 
-Last updated: 2026-10-27
+Last updated: 2026-11-10
 
 ## Current Scope
 
@@ -193,8 +193,13 @@ plugins are not registered.
 Commands: projects/snapshots (full payload JSON, retained snapshot insertion),
 the five personal-template commands (the backend stamps timestamps and rejects a
 claimed built-in), `get_app_paths`, `inspect_path`, `read_text_file`,
-`read_optional_text_file`, `export_config` (new files only), `apply_config`
-(checked atomic replace), `stage_candidate`/`remove_staged_candidate`, and
+`read_optional_text_file`, `export_config` (new files inside the app `exports/`
+directory only), `apply_config` (checked atomic replace restricted to detected
+terminal config paths), `stage_candidate`/`remove_staged_candidate` (restricted
+to detected terminal config paths, with abandoned `.cfgforge-validate` files
+whose owner PID exited or whose age exceeds 60 seconds swept on startup and
+single-instance desktop launch enforced via a Unix-socket guard in `lib.rs`),
+and
 `validate_candidate`, which now accepts only the binary the backend resolves
 from `PATH` and a regular file made by `stage_candidate` (a hidden sibling of
 the destination). Ghostty is validated with `--config-file=<path>` (one
@@ -270,10 +275,20 @@ boundary remains the Task 12 run of 32 tests, rustfmt, and Clippy.
 
 The Task 11 status previously recorded a Nano ID 3.3.16 advisory. Subsequent
 commit `89325d5` updated it; `npm ls nanoid` now reports 3.3.19 through
-Vite/PostCSS. Tasks 12–13 made no dependency changes. Dependency audits were not
-rerun for this milestone, so no current audit result is claimed. Vite still
-emits upstream `@iarna/toml` warnings about its unused Node stream entry point
-and optional `eval` inspection code; the production browser smoke passed.
+Vite/PostCSS.
+
+On 2026-11-10:
+
+- `@iarna/toml` was replaced with `smol-toml` (`1.9.1`, BSD-3-Clause), removing
+  the Vite `global: globalThis` shim and eliminating the upstream Node
+  `stream`/`eval` bundler warnings.
+- `npm audit` reported moderate advisories in `@vitest/mocker`
+  (`GHSA-82fw-gwwq-j7x9`, `GHSA-qxg6-89mg-rqv8`) and transitive `minimatch`
+  (`GHSA-g3hv-75wg-m249`). Updating `vitest` and `@vitest/coverage-v8` to
+  `^5.1.0` and pinning `"overrides": { "minimatch": "^11.0.5" }` resolved all
+  reported npm advisories (`npm audit` now reports `0` vulnerabilities).
+- `cargo-audit` is not installed in the verification environment, so a Rust
+  advisory database scan was not run.
 
 ## Assessment Verification (2026-10-06)
 
@@ -327,7 +342,9 @@ performed in this assessment.
   Playwright specs that use an in-memory backend.
 - `npm run tauri build -- --bundles appimage,deb` succeeded locally (AppImage
   about 81 MB, deb about 5 MB), but clean-account install, run, and uninstall
-  smoke tests of the packages were not performed. Dependency audits were not rerun.
+  smoke tests of the packages were not performed. `npm audit` reports zero
+  vulnerabilities; `cargo-audit` was not installed in the verification
+  environment.
 - The pre-rename destination check is not a filesystem lock.
 - Automatic snapshots from UI workflows are created before apply, restore, and
   translation. Import-replacement and template-replacement snapshots exist in

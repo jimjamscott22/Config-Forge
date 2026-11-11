@@ -166,6 +166,7 @@ GPL-3.0-only. See `LICENSE` and `THIRD_PARTY_NOTICES.md`.
 
 ## More documentation
 
+- [CONTRIBUTING.md](CONTRIBUTING.md)
 - [docs/architecture.md](docs/architecture.md)
 - [docs/adapter-authoring.md](docs/adapter-authoring.md)
 - [docs/recovery.md](docs/recovery.md)

@@ -1,4 +1,4 @@
-import * as TOML from "@iarna/toml";
+import { parse as parseToml } from "smol-toml";
 import type { DocumentNode, NodeBase } from "../../domain/document-node";
 import type { TerminalProject } from "../../domain/project";
 import type { SharedConfig } from "../../domain/shared-config";
@@ -181,7 +181,7 @@ function assignmentSpan(line: LineChunk): AssignmentSpan | null {
 }
 
 function parseTomlLiteral(value: string): unknown {
-  return TOML.parse(`value = ${value}\n`).value;
+  return parseToml(`value = ${value}\n`).value;
 }
 
 function isCompleteTomlLiteral(value: string): boolean {
@@ -371,7 +371,7 @@ export function parseAlacrittyDocument(
 
   let parsedDocument: unknown;
   try {
-    parsedDocument = TOML.parse(source);
+    parsedDocument = parseToml(source);
   } catch (error) {
     return {
       shared,
