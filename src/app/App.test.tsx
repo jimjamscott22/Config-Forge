@@ -51,6 +51,7 @@ describe("App", () => {
       target: { value: source },
     });
     await user.click(screen.getByRole("button", { name: "Open draft" }));
+    await user.click(screen.getByRole("button", { name: "Source" }));
     expect(screen.getByText(/# personal comment/)).toBeVisible();
     expect(store.getState().current?.shared.font.size).toBe(14);
     expect(
@@ -194,6 +195,7 @@ test("visual edits update the current draft and source while preserving its docu
   expect(store.getState().current?.document).toEqual(project.document);
   expect(store.getState().current?.overrides).toEqual(project.overrides);
   expect(store.getState().dirty).toBe(true);
+  await userEvent.click(screen.getByRole("button", { name: "Source" }));
   expect(screen.getByText(/font-size = 18/)).toBeVisible();
   expect(client.saveProject).not.toHaveBeenCalled();
   await userEvent.click(
@@ -201,6 +203,7 @@ test("visual edits update the current draft and source while preserving its docu
   );
   await userEvent.click(screen.getByRole("button", { name: "Resume draft" }));
   expect(screen.getByLabelText("Font size (pt)")).toHaveValue("18");
+  await userEvent.click(screen.getByRole("button", { name: "Source" }));
   expect(
     screen.getByText(/future-option = yes/, { selector: ".config-source" }),
   ).toBeVisible();

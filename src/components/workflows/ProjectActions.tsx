@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { TerminalProject } from "../../domain/project";
 import type { ProjectSnapshot } from "../../domain/snapshot";
 import type { StudioWorkflows } from "../../services/studio-workflows";
@@ -20,7 +21,10 @@ export interface ProjectActionsProps {
   onOpenProject(id: string): void;
 }
 
-export function ProjectActions({
+export type ProjectActionTab = "write" | "export" | "translate" | "history";
+
+/** The workflow panels, one per Studio side-panel tab. */
+export function projectActionPanels({
   project,
   workflows,
   snapshots,
@@ -31,13 +35,9 @@ export function ProjectActions({
   onRestored,
   onProjectsChanged,
   onOpenProject,
-}: ProjectActionsProps) {
-  return (
-    <section
-      id="project-actions"
-      className="panel project-actions"
-      aria-label="Project actions"
-    >
+}: ProjectActionsProps): Record<ProjectActionTab, ReactNode> {
+  return {
+    write: (
       <ApplyPanel
         key={`apply-${project.id}`}
         project={project}
@@ -46,11 +46,15 @@ export function ProjectActions({
         ready={ready}
         onApplied={onApplied}
       />
+    ),
+    export: (
       <ExportPanel
         key={`export-${project.id}`}
         project={project}
         workflows={workflows}
       />
+    ),
+    translate: (
       <TranslatePanel
         key={`translate-${project.id}`}
         project={project}
@@ -59,6 +63,8 @@ export function ProjectActions({
         onTranslated={onProjectsChanged}
         onOpen={onOpenProject}
       />
+    ),
+    history: (
       <HistoryPanel
         key={`history-${project.id}`}
         project={project}
@@ -68,6 +74,6 @@ export function ProjectActions({
         onChanged={onSnapshotsChanged}
         onRestored={onRestored}
       />
-    </section>
-  );
+    ),
+  };
 }

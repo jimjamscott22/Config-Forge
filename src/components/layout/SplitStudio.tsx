@@ -1,35 +1,31 @@
-import {
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react";
+import { useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { getAdapter } from "../../adapters/registry";
 import type { TerminalProject } from "../../domain/project";
 import type { SharedConfig } from "../../domain/shared-config";
 import { validateProject } from "../../services/validation-service";
 import { AdvancedSource } from "../editor/AdvancedSource";
+import { changedFields } from "../editor/control-fields";
 import { VisualControls } from "../editor/VisualControls";
 import { TerminalPreview } from "../preview/TerminalPreview";
 import { ValidationPanel } from "../validation/ValidationPanel";
+import type { ProjectActionTab } from "../workflows/ProjectActions";
+import { ProjectSwitcher } from "./ProjectSwitcher";
+import {
+  StudioSidePanel,
+  type SidePanelSection,
+  type SidePanelTab,
+} from "./StudioSidePanel";
 
-const query = "(max-width: 960px)";
-function subscribeLayout(callback: () => void) {
-  const media = window.matchMedia?.(query);
-  media?.addEventListener("change", callback);
-  return () => media?.removeEventListener("change", callback);
-}
-function narrowLayout() {
-  return window.matchMedia?.(query).matches ?? false;
-}
-const tabs = ["controls", "preview", "source", "validation"] as const;
-type StudioTab = (typeof tabs)[number];
+const actionLabels: Record<ProjectActionTab, string> = {
+  write: "Write",
+  export: "Export",
+  translate: "Translate",
+  history: "History",
+};
 
 export function SplitStudio({
   project,
+  baseline,
   projects = [],
   busy = false,
   onOpen,
@@ -43,6 +39,8 @@ export function SplitStudio({
   actions,
 }: {
   project: TerminalProject;
+  /** The project as last saved; drives per-field change markers. */
+  baseline?: TerminalProject | null;
   projects?: TerminalProject[];
   busy?: boolean;
   onOpen(id: string): void;
@@ -54,23 +52,15 @@ export function SplitStudio({
   onSaveAsTemplate?(project: TerminalProject): void;
   /** Present once desktop persistence is wired; otherwise the project is a session draft. */
   persistence?: { persisted: boolean; dirty: boolean; onSave(): void };
-  /** Apply / export / translate / history panels, shown below the workspace. */
-  actions?: ReactNode;
+  /** Write / export / translate / history panels, shown as side-panel tabs. */
+  actions?: Partial<Record<ProjectActionTab, ReactNode>>;
 }) {
-  const narrow = useSyncExternalStore(
-    subscribeLayout,
-    narrowLayout,
-    () => false,
-  );
-  const [active, setActive] = useState<StudioTab>("source");
   const id = useId();
-  const tabButtons = useRef<
-    Partial<Record<StudioTab, HTMLButtonElement | null>>
-  >({});
-  const visibleTabs: readonly StudioTab[] = narrow
-    ? tabs
-    : tabs.filter((tab) => tab !== "controls");
-  const selected = !narrow && active === "controls" ? "source" : active;
+  const [panel, setPanel] = useState<{ open: boolean; tab: SidePanelTab }>({
+    open: false,
+    tab: "source",
+  });
+  const opener = useRef<HTMLElement | null>(null);
   const generated = useMemo(
     () => getAdapter(project.terminal).generate(project),
     [project],
@@ -80,196 +70,123 @@ export function SplitStudio({
     () => [...generated.issues, ...validation.issues],
     [generated.issues, validation.issues],
   );
+  const errors = issues.filter((issue) => issue.severity === "error").length;
+  const warnings = issues.filter(
+    (issue) => issue.severity === "warning",
+  ).length;
+  const sameBaseline = baseline?.id === project.id ? baseline : null;
+  const changed = useMemo(
+    () => changedFields(project.shared, sameBaseline?.shared).length,
+    [project.shared, sameBaseline],
+  );
+
+  const status = !persistence
+    ? { text: "Session draft", unwritten: false }
+    : changed > 0
+      ? { text: `${changed} changed`, unwritten: true }
+      : !persistence.persisted
+        ? { text: "Not saved yet", unwritten: true }
+        : persistence.dirty
+          ? { text: "Unsaved changes", unwritten: true }
+          : { text: "Saved", unwritten: false };
+  const persistenceNote = persistence
+    ? "Projects are stored locally on this computer."
+    : "Session draft · Saving and applying need the desktop app.";
+
   const controlsContent = controls ?? (
     <VisualControls
       key={project.id}
       project={project}
+      baseline={sameBaseline?.shared}
       disabled={busy || !onSharedChange}
       onChange={(shared) => onSharedChange?.(shared)}
     />
   );
-  function keydown(event: KeyboardEvent<HTMLButtonElement>, tab: StudioTab) {
-    const index = visibleTabs.indexOf(tab);
-    const nextIndex =
-      event.key === "Home"
-        ? 0
-        : event.key === "End"
-          ? visibleTabs.length - 1
-          : event.key === "ArrowRight"
-            ? (index + 1) % visibleTabs.length
-            : event.key === "ArrowLeft"
-              ? (index - 1 + visibleTabs.length) % visibleTabs.length
-              : null;
-    if (nextIndex === null) return;
-    event.preventDefault();
-    const next = visibleTabs[nextIndex];
-    if (next) {
-      setActive(next);
-      tabButtons.current[next]?.focus();
-    }
+
+  const sections: SidePanelSection[] = [
+    {
+      id: "source",
+      label: "Source",
+      content: (
+        <AdvancedSource
+          key={project.id}
+          project={project}
+          generatedSource={generated.source}
+          disabled={busy || !onProjectChange}
+          onApply={(next) => onProjectChange?.(next)}
+        />
+      ),
+    },
+    {
+      id: "validation",
+      label: issues.length ? `Validation (${issues.length})` : "Validation",
+      content: <ValidationPanel issues={issues} />,
+    },
+    ...(Object.keys(actionLabels) as ProjectActionTab[]).flatMap((tab) =>
+      actions?.[tab]
+        ? [{ id: tab, label: actionLabels[tab], content: actions[tab] }]
+        : [],
+    ),
+  ];
+
+  function openPanel(tab: SidePanelTab, from: HTMLElement) {
+    opener.current = from;
+    setPanel({ open: true, tab });
   }
+  function closePanel() {
+    setPanel((current) => ({ ...current, open: false }));
+    opener.current?.focus();
+  }
+
   return (
     <section className="studio-view" aria-labelledby="view-title">
-      <header className="studio-header">
-        <div>
-          <p className="eyebrow">{project.terminal} / workspace</p>
-          <h1 id="view-title" tabIndex={-1}>
-            {project.name}
-          </h1>
+      <h1 id="view-title" className="visually-hidden" tabIndex={-1}>
+        {project.name}
+      </h1>
+      <header className="studio-topbar">
+        <div className="studio-topbar-project">
+          <ProjectSwitcher
+            current={project}
+            projects={
+              projects.some((item) => item.id === project.id)
+                ? projects
+                : [project, ...projects]
+            }
+            busy={busy}
+            onOpen={onOpen}
+            onHome={onHome}
+            onSaveAsTemplate={onSaveAsTemplate}
+          />
+          <span
+            className={`draft-badge${status.unwritten ? " unwritten" : ""}`}
+            role="status"
+            aria-describedby={`${id}-persistence`}
+          >
+            {status.text}
+          </span>
+          <span id={`${id}-persistence`} className="visually-hidden">
+            {persistenceNote}
+          </span>
         </div>
-        <span className="draft-badge">
-          {!persistence
-            ? "Session draft"
-            : !persistence.persisted
-              ? "Not saved yet"
-              : persistence.dirty
-                ? "Unsaved changes"
-                : "Saved"}
-        </span>
-      </header>
-      <div className="studio-grid">
-        <aside
-          className="panel project-sidebar"
-          aria-label="Project navigation"
-        >
-          <h2>Projects</h2>
+        <div className="studio-topbar-actions">
           <button
-            className="project-card current-project"
+            className="button"
             type="button"
-            aria-current="page"
-            disabled
+            aria-pressed={panel.open && panel.tab === "source"}
+            onClick={(event) => openPanel("source", event.currentTarget)}
           >
-            {project.name}
-            <span>{project.terminal}</span>
+            Source
           </button>
-          <ul className="project-list">
-            {projects
-              .filter((item) => item.id !== project.id)
-              .map((item) => (
-                <li key={item.id}>
-                  <button
-                    className="project-card"
-                    type="button"
-                    disabled={busy}
-                    onClick={() => onOpen(item.id)}
-                  >
-                    {item.name}
-                    <span>{item.terminal}</span>
-                  </button>
-                </li>
-              ))}
-          </ul>
-          {onSaveAsTemplate ? (
-            <button
-              className="button"
-              type="button"
-              disabled={busy}
-              onClick={() => onSaveAsTemplate(project)}
-            >
-              Save as template
-            </button>
-          ) : null}
-          <button className="button" type="button" onClick={onHome}>
-            Back to workbench
+          <button
+            className={`button validation-button ${
+              errors ? "has-errors" : warnings ? "has-warnings" : "is-valid"
+            }`}
+            type="button"
+            aria-label={`Validation: ${errors} errors, ${warnings} warnings`}
+            onClick={(event) => openPanel("validation", event.currentTarget)}
+          >
+            {errors ? `✕ ${errors}` : warnings ? `⚠ ${warnings}` : "✓ valid"}
           </button>
-        </aside>
-        {!narrow ? (
-          <section
-            className="panel studio-controls"
-            aria-label="Visual controls"
-          >
-            {controlsContent}
-          </section>
-        ) : null}
-        <section
-          className="panel studio-workspace"
-          aria-label="Configuration workspace"
-        >
-          <div
-            className="studio-tabs"
-            role="tablist"
-            aria-label="Workspace views"
-          >
-            {visibleTabs.map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                role="tab"
-                id={`${id}-${tab}-tab`}
-                aria-controls={`${id}-${tab}-panel`}
-                aria-selected={selected === tab}
-                tabIndex={selected === tab ? 0 : -1}
-                ref={(element) => {
-                  tabButtons.current[tab] = element;
-                }}
-                onClick={() => setActive(tab)}
-                onKeyDown={(event) => keydown(event, tab)}
-              >
-                {tab === "validation"
-                  ? `Validation${issues.length ? ` (${issues.length})` : ""}`
-                  : tab[0]?.toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
-          {narrow ? (
-            <div
-              role="tabpanel"
-              id={`${id}-controls-panel`}
-              aria-labelledby={`${id}-controls-tab`}
-              hidden={selected !== "controls"}
-              tabIndex={0}
-            >
-              {controlsContent}
-            </div>
-          ) : null}
-          <div
-            role="tabpanel"
-            id={`${id}-preview-panel`}
-            aria-labelledby={`${id}-preview-tab`}
-            hidden={selected !== "preview"}
-            tabIndex={0}
-          >
-            {preview ?? (
-              <TerminalPreview
-                shared={project.shared}
-                terminal={project.terminal}
-              />
-            )}
-          </div>
-          <div
-            role="tabpanel"
-            id={`${id}-source-panel`}
-            aria-labelledby={`${id}-source-tab`}
-            hidden={selected !== "source"}
-            tabIndex={0}
-          >
-            <AdvancedSource
-              key={project.id}
-              project={project}
-              generatedSource={generated.source}
-              disabled={busy || !onProjectChange}
-              onApply={(next) => onProjectChange?.(next)}
-            />
-          </div>
-          <div
-            role="tabpanel"
-            id={`${id}-validation-panel`}
-            aria-labelledby={`${id}-validation-tab`}
-            hidden={selected !== "validation"}
-            tabIndex={0}
-          >
-            <ValidationPanel issues={issues} />
-          </div>
-        </section>
-      </div>
-      {actions}
-      <footer className="studio-actions">
-        <p>
-          {persistence
-            ? "Projects are stored locally on this computer."
-            : "Session draft · Saving and applying need the desktop app."}
-        </p>
-        <div>
           <button
             className="button"
             type="button"
@@ -285,17 +202,34 @@ export function SplitStudio({
           <button
             className="button button-write"
             type="button"
-            disabled={!actions}
-            onClick={() => {
-              const panel = document.getElementById("project-actions");
-              panel?.scrollIntoView?.({ block: "start" });
-              panel?.querySelector("input")?.focus();
-            }}
+            disabled={!actions?.write}
+            onClick={(event) => openPanel("write", event.currentTarget)}
           >
-            Apply config
+            Write to disk
           </button>
         </div>
-      </footer>
+      </header>
+      <div className="studio-stage">
+        <section className="studio-preview" aria-label="Live preview">
+          {preview ?? (
+            <TerminalPreview
+              shared={project.shared}
+              terminal={project.terminal}
+            />
+          )}
+        </section>
+        <aside className="panel studio-controls" aria-label="Visual controls">
+          {controlsContent}
+        </aside>
+      </div>
+      <StudioSidePanel
+        open={panel.open}
+        active={panel.tab}
+        sections={sections}
+        note={persistenceNote}
+        onSelect={(tab) => setPanel({ open: true, tab })}
+        onClose={closePanel}
+      />
     </section>
   );
 }
