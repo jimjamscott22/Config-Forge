@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { closeTools, openTool } from "./support/studio";
 
 let errors: string[];
 test.beforeEach(async ({ page }) => {
@@ -43,14 +44,19 @@ test("shows the workbench and opens a terminal draft", async ({
     page.getByRole("button", { name: "Save project" }),
   ).toBeDisabled();
   await expect(
-    page.getByRole("button", { name: "Apply config" }),
+    page.getByRole("button", { name: "Write to disk" }),
   ).toBeDisabled();
+  await openTool(page, "Source");
   await page.getByRole("tab", { name: "Source", exact: true }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(
     page.getByRole("tab", { name: "Validation", exact: true }),
   ).toBeFocused();
   await expect(page.getByText("Internal checks passed.")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: "Source", exact: true }),
+  ).toBeFocused();
   await page.getByRole("button", { name: "Config Forge home" }).click();
   await page.getByRole("button", { name: "Resume draft" }).click();
   await expect(page.getByRole("heading", { name: "My Kitty" })).toBeVisible();
@@ -94,6 +100,7 @@ for (const config of [
       config.source,
     );
     await page.getByRole("button", { name: "Open draft" }).click();
+    await openTool(page, "Source");
     await expect(page.locator(".config-source")).toHaveText(config.source);
     await expect(
       page.getByRole("heading", { name: `Daily ${config.terminal}` }),
@@ -111,16 +118,16 @@ for (const config of [
   });
 }
 
-test("320px studio stays usable with long source and all four tabs", async ({
+test("320px studio stays usable and reaches every side panel tab", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto("/");
-  expect(
-    await page.evaluate(
+  const fits = () =>
+    page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true);
+    );
+  expect(await fits()).toBe(true);
   await page
     .getByRole("button", { name: "Import Existing Config", exact: true })
     .click();
@@ -131,23 +138,24 @@ test("320px studio stays usable with long source and all four tabs", async ({
     .getByLabel("Configuration source")
     .fill(`# ${"preserved".repeat(30)}\nfont-size ???\n`);
   await page.getByRole("button", { name: "Open draft" }).click();
-  await expect(page.getByRole("tab")).toHaveCount(4);
-  for (const tab of ["Controls", "Preview", "Source", "Validation"]) {
-    await page.getByRole("tab", { name: new RegExp(`^${tab}`) }).click();
-    await expect(page.getByRole("tabpanel")).toBeVisible();
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth,
-      ),
-    ).toBe(true);
+  await expect(page.getByLabel("Live preview")).toBeVisible();
+  await expect(page.getByLabel("Visual controls")).toBeAttached();
+  expect(await fits()).toBe(true);
+  for (const tab of ["Source", "Validation"] as const) {
+    await openTool(page, tab);
+    await expect(
+      page.getByRole("dialog", { name: "Project tools" }).getByRole("tabpanel"),
+    ).toBeVisible();
+    expect(await fits()).toBe(true);
   }
   await expect(page.getByText(/line 2/)).toBeVisible();
-  const actions = await page.locator(".studio-actions").evaluate((element) => ({
-    position: getComputedStyle(element).position,
-    bottom: getComputedStyle(element).bottom,
-  }));
-  expect(actions.position).toBe("sticky");
-  expect(actions.bottom).toBe("8px");
+  await closeTools(page);
+  await expect(page.getByRole("dialog", { name: "Project tools" })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.getByRole("button", { name: "Source", exact: true }),
+  ).toBeFocused();
   await page.screenshot({
     path: "/tmp/config-forge-task13-studio-320.png",
     fullPage: false,

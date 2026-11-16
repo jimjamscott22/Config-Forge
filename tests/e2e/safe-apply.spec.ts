@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openTool } from "./support/studio";
 import {
   installTauriMock,
   patchMockState,
@@ -22,6 +23,7 @@ async function openSavedProject(page: Page) {
 }
 
 async function reviewApply(page: Page, destination = DESTINATION) {
+  await openTool(page, "Write");
   await page.getByLabel("Destination path").fill(destination);
   await page.getByRole("button", { name: "Review changes" }).click();
 }
@@ -189,6 +191,7 @@ test("export refuses to replace an existing file or write outside the export dir
     },
   });
   await openSavedProject(page);
+  await openTool(page, "Export");
   await page.getByLabel("Export path").fill(DESTINATION);
   await page.getByRole("button", { name: "Export config" }).click();
   await expect(
@@ -209,6 +212,7 @@ test("export refuses to replace an existing file or write outside the export dir
 test("named snapshots can be restored after confirmation", async ({ page }) => {
   await installTauriMock(page);
   await openSavedProject(page);
+  await openTool(page, "History");
   await page.getByLabel("Snapshot name").fill("Before change");
   await page.getByRole("button", { name: "Create named snapshot" }).click();
   await expect(page.getByText("Saved snapshot “Before change”.")).toBeVisible();

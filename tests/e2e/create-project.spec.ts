@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openTool } from "./support/studio";
 import { installTauriMock, readMockState } from "./support/tauri-mock";
 
 test.beforeEach(async ({ page }) => {
@@ -17,7 +18,9 @@ test("creates a Ghostty project from a built-in template, saves it, and reopens 
   await expect(
     page.getByRole("heading", { name: "Daily Ghostty" }),
   ).toBeVisible();
-  await expect(page.getByText("ghostty / workspace")).toBeVisible();
+  await expect(page.locator(".project-switcher-terminal")).toHaveText(
+    "ghostty",
+  );
   await expect(page.locator(".draft-badge")).toHaveText("Not saved yet");
   expect(Object.keys((await readMockState(page)).projects)).toHaveLength(0);
 
@@ -34,6 +37,7 @@ test("creates a Ghostty project from a built-in template, saves it, and reopens 
     page.getByRole("heading", { name: "Daily Ghostty" }),
   ).toBeVisible();
   await expect(page.locator(".draft-badge")).toHaveText("Saved");
+  await openTool(page, "Source");
   await expect(page.locator(".config-source")).toContainText("#171a21");
 });
 

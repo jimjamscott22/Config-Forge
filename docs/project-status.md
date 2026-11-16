@@ -349,3 +349,13 @@ performed in this assessment.
 - Automatic snapshots from UI workflows are created before apply, restore, and
   translation. Import-replacement and template-replacement snapshots exist in
   the services but no UI path invokes them yet.
+
+## Preview Stage redesign (2026-11-16)
+
+The app now uses the jamielab dark theme and the Studio screen is the "Preview
+Stage" layout (spec: `docs/superpowers/specs/2026-11-16-preview-stage-redesign-design.md`).
+Source, validation, write, export, translate and history live in a slide-in
+side panel; on screens ≤960px it is a full-screen overlay that must be closed
+to reach the top bar. Fields changed since the last save show a red edge and
+their previous value. Verified by Vitest and the Playwright desktop and
+Pixel 5 projects; not checked in the real Tauri shell.

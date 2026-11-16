@@ -1,8 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
+import { closeTools, openTool } from "./support/studio";
 
 async function showControls(page: Page) {
-  const tab = page.getByRole("tab", { name: "Controls", exact: true });
-  if (await tab.count()) await tab.click();
+  const panel = page.getByRole("dialog", { name: "Project tools" });
+  if (await panel.isVisible()) await closeTools(page);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -56,12 +57,12 @@ for (const fixture of [
     await size.fill("100");
     await expect(size).toHaveAttribute("aria-invalid", "true");
     await expect(page.getByRole("alert")).toBeVisible();
-    await page.getByRole("tab", { name: "Source", exact: true }).click();
+    await openTool(page, "Source");
     await expect(page.locator(".config-source")).toHaveText(fixture.source);
     await showControls(page);
     await size.fill("18.5");
     await expect(size).toHaveAttribute("aria-invalid", "false");
-    await page.getByRole("tab", { name: "Source", exact: true }).click();
+    await openTool(page, "Source");
     await expect(page.locator(".config-source")).toContainText(fixture.size);
     await expect(page.locator(".config-source")).toContainText(fixture.keep);
     await expect(page.locator(".config-source")).toContainText("# preserved");
@@ -85,7 +86,7 @@ for (const fixture of [
       .selectOption("true");
     await page.getByText("Colors", { exact: true }).click();
     await page.getByLabel("Background", { exact: true }).fill("#303446");
-    await page.getByRole("tab", { name: "Preview", exact: true }).click();
+    await closeTools(page);
     const preview = page.getByLabel("Mock terminal", { exact: true });
     await expect(preview).toBeVisible();
     await expect(preview).toHaveCSS("opacity", "0.92");
@@ -123,7 +124,7 @@ for (const fixture of [
       .getByRole("button", { name: "Reset Font size (pt) to terminal default" })
       .click();
     await expect(size).toHaveValue("");
-    await page.getByRole("tab", { name: "Source", exact: true }).click();
+    await openTool(page, "Source");
     await expect(page.locator(".config-source")).not.toContainText(
       fixture.size,
     );
@@ -156,7 +157,7 @@ test("320px controls validate and the preview stays contained at extreme setting
   ).toBe(true);
   await page.getByText("Window & cursor", { exact: true }).click();
   await page.getByLabel("Horizontal padding (px)", { exact: true }).fill("200");
-  await page.getByRole("tab", { name: "Preview", exact: true }).click();
+  await closeTools(page);
   await expect(page.getByLabel("Mock terminal", { exact: true })).toBeVisible();
   expect(
     await page.evaluate(

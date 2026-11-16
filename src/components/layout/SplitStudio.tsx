@@ -139,7 +139,10 @@ export function SplitStudio({
   }
 
   return (
-    <section className="studio-view" aria-labelledby="view-title">
+    <section
+      className={`studio-view${panel.open ? " side-panel-open" : ""}`}
+      aria-labelledby="view-title"
+    >
       <h1 id="view-title" className="visually-hidden" tabIndex={-1}>
         {project.name}
       </h1>

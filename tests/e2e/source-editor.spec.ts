@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openTool } from "./support/studio";
 
 test("source edits round-trip into the controls and keep preserved lines", async ({
   page,
@@ -16,7 +17,7 @@ test("source edits round-trip into the controls and keep preserved lines", async
     .getByLabel("Configuration source")
     .fill("# preserved\nfont-size = 14\nfuture-option = yes\n");
   await page.getByRole("button", { name: "Open draft" }).click();
-  await page.getByRole("tab", { name: "Source", exact: true }).click();
+  await openTool(page, "Source");
   await page.getByRole("button", { name: "Edit source" }).click();
   await page
     .getByLabel("Native ghostty config")
@@ -29,6 +30,6 @@ test("source edits round-trip into the controls and keep preserved lines", async
   await expect(page.locator(".config-source")).toContainText("font-size = 16");
   await expect(page.locator(".config-source")).toContainText("new-option = 1");
   await expect(page.locator(".config-source")).toContainText("# preserved");
-  await page.getByRole("tab", { name: "Validation", exact: false }).click();
+  await openTool(page, "Validation");
   await expect(page.getByRole("heading", { name: "Validation" })).toBeVisible();
 });

@@ -710,3 +710,10 @@ textarea {
     max-height: none;
   }
 }
+
+/* Wide screens: make room for the side panel so top-bar actions stay usable. */
+@media (min-width: 961px) {
+  .studio-view.side-panel-open {
+    padding-right: max(0px, calc(576px - (100vw - 100%) / 2));
+  }
+}
