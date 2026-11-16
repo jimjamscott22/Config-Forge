@@ -648,3 +648,59 @@ textarea {
   background: #b81f2f;
   border-color: #b81f2f;
 }
+
+.studio-side-panel {
+  position: fixed;
+  z-index: 20;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  width: min(560px, 100vw);
+  flex-direction: column;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+}
+.side-panel-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+.side-panel-note {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+.side-panel-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--hairline);
+}
+.side-panel-tabs button {
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--text-secondary);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+}
+.side-panel-tabs button[aria-selected="true"] {
+  color: var(--text-primary);
+  border-bottom-color: var(--signal);
+}
+.side-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+@media (max-width: 960px) {
+  .studio-side-panel {
+    left: 0;
+    width: 100vw;
+    border-left: 0;
+  }
+}
