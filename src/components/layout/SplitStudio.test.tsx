@@ -201,3 +201,25 @@ test("memoizes generation and validation across panel switches and re-renders fo
   generateSpy.mockRestore();
   validateSpy.mockRestore();
 });
+
+test("closing the tools panel keeps an unapplied source edit", async () => {
+  render(
+    <SplitStudio
+      project={project()}
+      onOpen={() => {}}
+      onHome={() => {}}
+      onProjectChange={() => {}}
+    />,
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Source" }));
+  await userEvent.click(screen.getByRole("button", { name: "Edit source" }));
+  const editor = screen.getByLabelText(/Native ghostty config/);
+  await userEvent.clear(editor);
+  await userEvent.type(editor, "font-size = 20");
+  await userEvent.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Source" }));
+  expect(screen.getByLabelText(/Native ghostty config/)).toHaveValue(
+    "font-size = 20",
+  );
+});

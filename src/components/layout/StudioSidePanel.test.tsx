@@ -32,8 +32,8 @@ function Harness({ onClose = () => undefined }: { onClose?(): void }) {
   );
 }
 
-test("renders nothing when closed", () => {
-  const { container } = render(
+test("is hidden but stays mounted when closed", () => {
+  render(
     <StudioSidePanel
       open={false}
       active="source"
@@ -42,7 +42,10 @@ test("renders nothing when closed", () => {
       onClose={() => undefined}
     />,
   );
-  expect(container).toBeEmptyDOMElement();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(
+    screen.getByLabelText("Source text", { selector: "input" }),
+  ).not.toBeVisible();
 });
 
 test("shows the active section, focuses it, and keeps inactive sections mounted", async () => {

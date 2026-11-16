@@ -58,7 +58,8 @@ export function StudioSidePanel({
     target?.focus();
   }, [open, selected]);
 
-  if (!open || !selected) return null;
+  // Stay mounted while closed so drafts (e.g. an unapplied source edit) survive.
+  if (!selected) return null;
 
   function keydown(event: KeyboardEvent<HTMLButtonElement>, tab: SidePanelTab) {
     const ids = sections.map((section) => section.id);
@@ -85,6 +86,7 @@ export function StudioSidePanel({
   return (
     <div
       className="studio-side-panel"
+      hidden={!open}
       role="dialog"
       aria-modal="false"
       aria-label="Project tools"

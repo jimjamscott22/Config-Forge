@@ -717,3 +717,6 @@ textarea {
     padding-right: max(0px, calc(576px - (100vw - 100%) / 2));
   }
 }
+.studio-side-panel[hidden] {
+  display: none;
+}
