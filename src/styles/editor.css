@@ -111,7 +111,7 @@
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: repeating-conic-gradient(#c8bcaa 0% 25%, #f6f1e8 0% 50%) 0 / 20px
+  background: repeating-conic-gradient(#2a3a34 0% 25%, #18201d 0% 50%) 0 / 20px
     20px;
 }
 .preview-terminal {
@@ -433,4 +433,32 @@
 .translation-report h3 {
   margin: 0 0 6px;
   font-size: 0.98rem;
+}
+
+.field-label-row {
+  margin-bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.field-label-row label {
+  margin-bottom: 0;
+}
+.field-was {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+.field-was::before {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  background: var(--unwritten);
+  content: "";
+}
+.field-changed input,
+.field-changed select {
+  border-left: 3px solid var(--unwritten);
 }

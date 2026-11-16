@@ -8,10 +8,13 @@ import { appearanceFields, behaviorFields, fontFields } from "./control-fields";
 export function VisualControls({
   project,
   disabled,
+  baseline,
   onChange,
 }: {
   project: TerminalProject;
   disabled?: boolean;
+  /** Shared config as last saved, for per-field change markers. */
+  baseline?: SharedConfig;
   onChange(shared: SharedConfig): void;
 }) {
   const preservedPaths = project.document.flatMap((node) => {
@@ -29,6 +32,7 @@ export function VisualControls({
     terminal: project.terminal,
     disabled,
     preservedPaths,
+    baseline,
     onChange,
   };
   return (

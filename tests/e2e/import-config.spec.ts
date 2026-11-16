@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { closeTools, openTool } from "./support/studio";
 import { installTauriMock } from "./support/tauri-mock";
 
 const configs = [
@@ -41,7 +42,7 @@ for (const config of configs) {
     const edited = config.source
       .replace("14.0", "16.0")
       .replace(/\b14\b/, "16");
-    await page.getByRole("tab", { name: "Source", exact: true }).click();
+    await openTool(page, "Source");
     await page.getByRole("button", { name: "Edit source" }).click();
     await page.getByLabel(`Native ${config.terminal} config`).fill(edited);
     await expect(page.getByText("Unsaved edits · parsed")).toBeVisible();
@@ -55,12 +56,14 @@ for (const config of configs) {
     await expect(page.locator(".config-source")).toContainText(config.unknown);
     await expect(page.locator(".config-source")).toContainText("16");
 
+    await closeTools(page);
     await page.getByRole("button", { name: "Save project" }).click();
     await expect(page.locator(".draft-badge")).toHaveText("Saved");
     await page.reload();
     await page
       .getByRole("button", { name: new RegExp(`Imported ${config.terminal}`) })
       .click();
+    await openTool(page, "Source");
     await expect(page.locator(".config-source")).toContainText(
       "# keep this comment",
     );

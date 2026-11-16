@@ -85,6 +85,14 @@ async function openSavedStudio(
   );
 }
 
+async function openTool(
+  user: ReturnType<typeof setup>["user"],
+  tab: "Write" | "Export" | "Translate" | "History",
+) {
+  await user.click(screen.getByRole("button", { name: "Write to disk" }));
+  if (tab !== "Write") await user.click(screen.getByRole("tab", { name: tab }));
+}
+
 describe("desktop startup", () => {
   test("shows a blocking error instead of fake success and can retry", async () => {
     const startup = vi
@@ -164,6 +172,7 @@ describe("persistent studio", () => {
     await context.user.click(
       screen.getByRole("button", { name: "Open draft" }),
     );
+    await openTool(context.user, "Write");
     expect(
       screen.getAllByText(/Save the project before/).length,
     ).toBeGreaterThan(0);
@@ -176,6 +185,7 @@ describe("persistent studio", () => {
     const context = setup();
     await openSavedStudio(context);
     const { client, store, user, written } = context;
+    await openTool(user, "Write");
     client.readOptionalTextFile.mockResolvedValue("font-size = 9\n");
     client.inspectPath.mockResolvedValue({ exists: true, isSymlink: false });
 
@@ -224,6 +234,7 @@ describe("persistent studio", () => {
     const context = setup();
     await openSavedStudio(context);
     const { client, user } = context;
+    await openTool(user, "Write");
     await user.clear(screen.getByLabelText("Destination path"));
     await user.type(
       screen.getByLabelText("Destination path"),
@@ -242,6 +253,7 @@ describe("persistent studio", () => {
     const context = setup();
     await openSavedStudio(context);
     const { client, user } = context;
+    await openTool(user, "Write");
     await user.clear(screen.getByLabelText("Destination path"));
     await user.type(screen.getByLabelText("Destination path"), "/tmp/link");
     client.inspectPath.mockResolvedValueOnce({ exists: true, isSymlink: true });
@@ -265,6 +277,7 @@ describe("persistent studio", () => {
     const context = setup();
     await openSavedStudio(context);
     const { client, user } = context;
+    await openTool(user, "Write");
     client.applyConfig.mockRejectedValue(
       new Error("destination changed since confirmation"),
     );
@@ -286,6 +299,7 @@ describe("persistent studio", () => {
     const context = setup();
     await openSavedStudio(context);
     const { client, user } = context;
+    await openTool(user, "Export");
     await user.click(screen.getByRole("button", { name: "Export config" }));
     expect(
       await screen.findByText(/Exported 9 bytes to \/data\/exports\//),
@@ -304,6 +318,7 @@ describe("persistent studio", () => {
     const context = setup();
     await openSavedStudio(context);
     const { client, projects, store, user } = context;
+    await openTool(user, "Translate");
     const source = structuredClone(store.getState().current!);
     await user.click(
       screen.getByRole("button", { name: "Translate to new project" }),
@@ -333,6 +348,7 @@ describe("persistent studio", () => {
     const context = setup();
     await openSavedStudio(context);
     const { store, user } = context;
+    await openTool(user, "History");
     await user.type(
       screen.getByLabelText("Snapshot name"),
       "Before experiment",

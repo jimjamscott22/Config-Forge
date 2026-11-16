@@ -14,7 +14,7 @@ import { detectTerminals } from "../services/tauri-client";
 import { builtinTemplates } from "../templates/builtins";
 import { projectStore, type createProjectStore } from "../state/project-store";
 import type { StudioWorkflows } from "../services/studio-workflows";
-import { ProjectActions } from "../components/workflows/ProjectActions";
+import { projectActionPanels } from "../components/workflows/ProjectActions";
 
 export type AppRoute =
   | { page: "home" }
@@ -55,6 +55,7 @@ export function AppRoutes({
     installations: [],
   });
   const current = useStore(store, (state) => state.current);
+  const baseline = useStore(store, (state) => state.baseline);
   const projects = useStore(store, (state) => state.projects);
   const busy = useStore(store, (state) => state.busy);
   const persisted = useStore(store, (state) => state.persisted);
@@ -152,6 +153,7 @@ export function AppRoutes({
       ) : route.page === "studio" && current ? (
         <SplitStudio
           project={current}
+          baseline={baseline}
           projects={projects}
           busy={busy}
           onOpen={(id) => {
@@ -206,56 +208,55 @@ export function AppRoutes({
               : undefined
           }
           actions={
-            workflows ? (
-              <ProjectActions
-                project={current}
-                workflows={workflows}
-                snapshots={snapshots}
-                ready={persisted && !dirty && !busy}
-                destinationSuggestions={
-                  detection.installations.find(
-                    (item) => item.terminal === current.terminal,
-                  )?.configPaths ?? []
-                }
-                onApplied={async (destination) => {
-                  try {
-                    const latest = store.getState().current;
-                    if (latest?.id === current.id) {
-                      if (latest.destinationPath !== destination) {
-                        const unsavedEdits = store.getState().dirty;
-                        store
-                          .getState()
-                          .edit({ ...latest, destinationPath: destination });
-                        // Never persist edits the user made during the review;
-                        // they are saved with the next explicit Save.
-                        if (!unsavedEdits) await store.getState().save();
+            workflows
+              ? projectActionPanels({
+                  project: current,
+                  workflows,
+                  snapshots,
+                  ready: persisted && !dirty && !busy,
+                  destinationSuggestions:
+                    detection.installations.find(
+                      (item) => item.terminal === current.terminal,
+                    )?.configPaths ?? [],
+                  onApplied: async (destination) => {
+                    try {
+                      const latest = store.getState().current;
+                      if (latest?.id === current.id) {
+                        if (latest.destinationPath !== destination) {
+                          const unsavedEdits = store.getState().dirty;
+                          store
+                            .getState()
+                            .edit({ ...latest, destinationPath: destination });
+                          // Never persist edits the user made during the review;
+                          // they are saved with the next explicit Save.
+                          if (!unsavedEdits) await store.getState().save();
+                        }
+                        await store.getState().refreshSnapshots();
                       }
-                      await store.getState().refreshSnapshots();
+                    } catch (reason) {
+                      throw new Error(
+                        `The file was written, but the project could not be updated: ${
+                          reason instanceof Error
+                            ? reason.message
+                            : String(reason)
+                        }`,
+                        { cause: reason },
+                      );
                     }
-                  } catch (reason) {
-                    throw new Error(
-                      `The file was written, but the project could not be updated: ${
-                        reason instanceof Error
-                          ? reason.message
-                          : String(reason)
-                      }`,
-                      { cause: reason },
-                    );
-                  }
-                }}
-                onSnapshotsChanged={() => store.getState().refreshSnapshots()}
-                onRestored={(restored) => store.getState().adopt(restored)}
-                onProjectsChanged={() => {
-                  store
-                    .getState()
-                    .refresh()
-                    .catch(() => undefined);
-                }}
-                onOpenProject={(id) => {
-                  void openProject(id);
-                }}
-              />
-            ) : undefined
+                  },
+                  onSnapshotsChanged: () => store.getState().refreshSnapshots(),
+                  onRestored: (restored) => store.getState().adopt(restored),
+                  onProjectsChanged: () => {
+                    store
+                      .getState()
+                      .refresh()
+                      .catch(() => undefined);
+                  },
+                  onOpenProject: (id) => {
+                    void openProject(id);
+                  },
+                })
+              : undefined
           }
         />
       ) : route.page === "create" || route.page === "import" ? (

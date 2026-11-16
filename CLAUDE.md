@@ -38,7 +38,7 @@ Full check before a milestone: format:check, lint, typecheck, test, build, cargo
 - `validation-service.ts` (`validateProject` aggregates schema + adapter + target path + translation issues), `translation-service.ts` (cross-terminal reports: each portable field is exact / omitted / defaulted), `project-service.ts` (create/import/save/export, snapshots, restore), `template-service.ts`.
 - `src/state/project-store.ts` — vanilla Zustand store built by `createProjectStore(client)`; edits made during in-flight I/O must not be discarded.
 
-**UI**: `src/app/routes.tsx` → `components/layout` (Home, responsive Split Studio), `components/editor` (visual controls driven by `control-fields.ts`), `components/preview` (pure `preview-model.ts` → mock terminal; executes nothing). Drafts from create/import are session-only until persistence lands.
+**UI**: `src/app/routes.tsx` → `components/layout` (Home; `SplitStudio` is the "Preview Stage": centred preview, settings panel on the right, `ProjectSwitcher` in the top bar, `StudioSidePanel` slide-in for Source/Validation/Write/Export/Translate/History), `components/editor` (visual controls driven by `control-fields.ts`), `components/preview` (pure `preview-model.ts` → mock terminal; executes nothing). Drafts from create/import are session-only until persistence lands.
 
 **Rust backend** (`src-tauri/src/`): `commands/` (Tauri commands), `filesystem/` (`paths`, `atomic_write`, `backup`), `process/` (native validation with timeout/output caps; backend picks validator args), `db/` (sqlx SQLite repositories + `migrations/0001_initial.sql`), `error.rs`, `state.rs` (injectable `Environment` for tests). Reuse the existing backup/validation/atomic-write helpers rather than writing files directly.
 
@@ -58,6 +58,7 @@ installed Chromium differs from Playwright's pin.
 
 ## Conventions
 
+- Theme is jamielab (dark, IBM Plex Mono bundled via `@fontsource`); `--unwritten` (forge red) is reserved for changes not yet written to disk. Per-field change markers compare against the store's `baseline`.
 - Strict TS, two-space indent, double quotes, semicolons (Prettier/ESLint enforce). PascalCase components/types, camelCase functions, kebab-case module filenames. Rust: rustfmt + snake_case. Preserve CSS tokens in `src/styles/tokens.css`.
 - Tests are colocated (`*.test.ts[x]`, Rust inline `#[cfg(test)]`); Playwright specs are `tests/e2e/*.spec.ts`. Use `fixtures/` or temp dirs — never personal config files.
 - Commits: `feat:` / `docs:` / `chore:` prefixes, scoped. Preserve unrelated worktree changes.

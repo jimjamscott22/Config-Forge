@@ -13,6 +13,8 @@ import { projectClient, type ProjectClient } from "../services/tauri-client";
 export interface ProjectStore {
   projects: TerminalProject[];
   current: TerminalProject | null;
+  /** The project as last saved, opened or adopted (or as first drafted). */
+  baseline: TerminalProject | null;
   snapshots: ProjectSnapshot[];
   /** True once the current project exists in persistent storage. */
   persisted: boolean;
@@ -47,6 +49,7 @@ export function createProjectStore(client: ProjectClient = projectClient) {
     return {
       projects: [],
       current: null,
+      baseline: null,
       snapshots: [],
       persisted: false,
       dirty: false,
@@ -72,15 +75,23 @@ export function createProjectStore(client: ProjectClient = projectClient) {
               "Project changed while opening; keep or save your edits first.",
             );
           }
-          set({ current, snapshots, persisted: true, dirty: false });
+          set({
+            current,
+            baseline: structuredClone(current),
+            snapshots,
+            persisted: true,
+            dirty: false,
+          });
         }),
       startDraft: (project, replaceCurrent = false) => {
         if (get().busy)
           throw new Error("A project operation is already running.");
         if (get().dirty && !replaceCurrent)
           throw new Error("Confirm replacement before starting another draft.");
+        const draft = projectPayloadSchema.parse(project);
         set({
-          current: projectPayloadSchema.parse(project),
+          current: draft,
+          baseline: structuredClone(draft),
           snapshots: [],
           persisted: false,
           dirty: true,
@@ -105,6 +116,7 @@ export function createProjectStore(client: ProjectClient = projectClient) {
               ...state.projects.filter((project) => project.id !== saved.id),
             ],
             current: state.current === current ? saved : state.current,
+            baseline: structuredClone(saved),
             persisted: true,
             dirty: state.current !== current,
           }));
@@ -132,6 +144,7 @@ export function createProjectStore(client: ProjectClient = projectClient) {
             projects,
             snapshots,
             current: project,
+            baseline: structuredClone(project),
             persisted: true,
             dirty: false,
           });

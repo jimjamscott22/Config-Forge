@@ -219,3 +219,55 @@ test("adopting after the open project changed mid-flight keeps the newer state",
   await expect(pending).rejects.toThrow("changed while it was being restored");
   expect(store.getState().current?.name).toBe("Other");
 });
+
+test("baseline tracks the last opened, drafted, saved, or adopted project", async () => {
+  const { client } = makeProjectClient();
+  const project = await createProject(
+    { name: "Daily", terminal: "ghostty" },
+    client,
+  );
+  const store = createProjectStore(client);
+  expect(store.getState().baseline).toBeNull();
+
+  await store.getState().open(project.id);
+  expect(store.getState().baseline).toMatchObject({ name: "Daily" });
+
+  store.getState().edit({ ...project, name: "Edited" });
+  expect(store.getState().baseline).toMatchObject({ name: "Daily" });
+
+  await store.getState().save();
+  expect(store.getState().baseline).toMatchObject({ name: "Edited" });
+
+  await store.getState().adopt({ ...project, name: "Restored" });
+  expect(store.getState().baseline).toMatchObject({ name: "Restored" });
+
+  const draft = makeProject({ name: "Draft", terminal: "kitty" });
+  store.getState().startDraft(draft);
+  expect(store.getState().baseline).toMatchObject({ name: "Draft" });
+});
+
+test("baseline is what was saved, not edits made during the save", async () => {
+  const { client } = makeProjectClient();
+  const project = await createProject(
+    { name: "Daily", terminal: "ghostty" },
+    client,
+  );
+  const store = createProjectStore(client);
+  await store.getState().open(project.id);
+  store.getState().edit({ ...project, name: "First edit" });
+  let finish: () => void = () => {
+    throw new Error("Save has not started");
+  };
+  client.saveProject.mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const saving = store.getState().save();
+  store.getState().edit({ ...project, name: "Second edit" });
+  finish();
+  await saving;
+  expect(store.getState().baseline).toMatchObject({ name: "First edit" });
+  expect(store.getState().dirty).toBe(true);
+});

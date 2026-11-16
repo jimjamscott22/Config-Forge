@@ -7,6 +7,8 @@ export interface ControlsProps {
   terminal: TerminalId;
   disabled?: boolean;
   preservedPaths?: readonly string[];
+  /** Shared config as last saved; fields that differ are marked as changed. */
+  baseline?: SharedConfig;
   onChange(shared: SharedConfig): void;
 }
 
@@ -16,10 +18,14 @@ export function FieldControl({
   terminal,
   disabled,
   preservedPaths,
+  baseline,
   onChange,
 }: ControlsProps & { field: ControlField }) {
   const id = useId();
   const value = field.read(shared);
+  const previous = baseline ? field.read(baseline) : value;
+  const changed = previous !== value;
+  const describedBy = `${id}-help${changed ? ` ${id}-was` : ""}`;
   const [draft, setDraft] = useState<{
     base: typeof value;
     text: string;
@@ -46,15 +52,26 @@ export function FieldControl({
     onChange(result.shared);
   }
   return (
-    <div className={`config-field${locked ? " field-unavailable" : ""}`}>
-      <label htmlFor={id}>{field.label}</label>
+    <div
+      className={`config-field${locked ? " field-unavailable" : ""}${
+        changed ? " field-changed" : ""
+      }`}
+    >
+      <div className="field-label-row">
+        <label htmlFor={id}>{field.label}</label>
+        {changed ? (
+          <span id={`${id}-was`} className="field-was">
+            was {previous === null ? "unset" : String(previous)}
+          </span>
+        ) : null}
+      </div>
       <div className="field-input-row">
         {field.kind === "select" || field.kind === "boolean" ? (
           <select
             id={id}
             value={text}
             disabled={locked}
-            aria-describedby={`${id}-help`}
+            aria-describedby={describedBy}
             onChange={(event) => update(event.target.value)}
           >
             <option value="">Terminal default</option>
@@ -83,7 +100,7 @@ export function FieldControl({
               field.kind === "color" ? "#rrggbb / default" : "Terminal default"
             }
             aria-invalid={Boolean(error)}
-            aria-describedby={`${id}-help${error ? ` ${id}-error` : ""}`}
+            aria-describedby={`${describedBy}${error ? ` ${id}-error` : ""}`}
             onChange={(event) => update(event.target.value)}
           />
         )}

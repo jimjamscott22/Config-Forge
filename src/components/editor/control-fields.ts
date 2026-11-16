@@ -262,3 +262,22 @@ export function fieldSupport(terminal: TerminalId, path: string) {
           )?.settingPath;
   return { supported, portableTo, native };
 }
+
+export const allControlFields: readonly ControlField[] = [
+  ...fontFields,
+  ...appearanceFields,
+  ...colorFields,
+  ...ansiFields,
+  ...behaviorFields,
+];
+
+/** Fields whose value differs from the saved baseline; none without one. */
+export function changedFields(
+  shared: SharedConfig,
+  baseline: SharedConfig | null | undefined,
+): ControlField[] {
+  if (!baseline) return [];
+  return allControlFields.filter(
+    (field) => field.read(shared) !== field.read(baseline),
+  );
+}

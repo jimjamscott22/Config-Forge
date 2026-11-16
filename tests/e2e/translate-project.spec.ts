@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { closeTools, openTool } from "./support/studio";
 import { installTauriMock, readMockState } from "./support/tauri-mock";
 
 const source =
@@ -21,6 +22,7 @@ test("translates a saved Ghostty project into a new Kitty project with a report"
   const [sourceProject] = Object.values((await readMockState(page)).projects);
   if (!sourceProject) throw new Error("the source project was not saved");
 
+  await openTool(page, "Translate");
   await page.getByLabel("Translate to", { exact: true }).selectOption("kitty");
   await page.getByRole("button", { name: "Translate to new project" }).click();
 
@@ -45,15 +47,18 @@ test("translates a saved Ghostty project into a new Kitty project with a report"
   ).toBe(true);
 
   await page.getByRole("button", { name: /^Open “Ghostty daily/ }).click();
-  await expect(page.getByText("kitty / workspace")).toBeVisible();
+  await expect(page.locator(".project-switcher-terminal")).toHaveText("kitty");
+  await openTool(page, "Source");
   await expect(page.locator(".config-source")).toContainText("font_size 15");
   await expect(page.locator(".config-source")).not.toContainText(
     "future-setting",
   );
 
   // The original is untouched and still has its comments and unknown setting.
+  await closeTools(page);
   await page.getByRole("button", { name: "Config Forge home" }).click();
   await page.getByRole("button", { name: /^Ghostty daily\s*ghostty/ }).click();
+  await openTool(page, "Source");
   await expect(page.locator(".config-source")).toContainText(
     "# my ghostty comment",
   );
