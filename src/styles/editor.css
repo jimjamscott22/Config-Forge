@@ -434,3 +434,31 @@
   margin: 0 0 6px;
   font-size: 0.98rem;
 }
+
+.field-label-row {
+  margin-bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.field-label-row label {
+  margin-bottom: 0;
+}
+.field-was {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+.field-was::before {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  background: var(--unwritten);
+  content: "";
+}
+.field-changed input,
+.field-changed select {
+  border-left: 3px solid var(--unwritten);
+}

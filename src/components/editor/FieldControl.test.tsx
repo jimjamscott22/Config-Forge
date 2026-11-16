@@ -140,3 +140,39 @@ test("preserved native values cannot be silently overwritten by visual controls"
   );
   expect(onChange).not.toHaveBeenCalled();
 });
+
+test("marks a field changed since the baseline and shows the previous value", () => {
+  const saved = makeProject({
+    terminal: "ghostty",
+    name: "Draft",
+    source: "font-size = 12\n",
+  });
+  const edited = sizeField!.update(saved.shared, "13");
+  if (!edited.success) throw new Error(edited.message);
+  const { container, rerender } = render(
+    <FieldControl
+      field={sizeField!}
+      shared={edited.shared}
+      baseline={saved.shared}
+      terminal="ghostty"
+      onChange={() => undefined}
+    />,
+  );
+  expect(container.querySelector(".field-changed")).not.toBeNull();
+  expect(screen.getByText("was 12")).toBeInTheDocument();
+  expect(screen.getByLabelText("Font size (pt)")).toHaveAccessibleDescription(
+    expect.stringContaining("was 12"),
+  );
+
+  rerender(
+    <FieldControl
+      field={sizeField!}
+      shared={saved.shared}
+      baseline={saved.shared}
+      terminal="ghostty"
+      onChange={() => undefined}
+    />,
+  );
+  expect(container.querySelector(".field-changed")).toBeNull();
+  expect(screen.queryByText(/^was /)).toBeNull();
+});
