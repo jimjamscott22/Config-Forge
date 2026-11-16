@@ -170,7 +170,7 @@ export function ApplyPanel({
           ) : null}
           <div className="form-actions">
             <button
-              className="button button-primary"
+              className="button button-write"
               type="button"
               disabled={!reviewed}
               onClick={() => settle(true)}

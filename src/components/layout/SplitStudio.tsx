@@ -283,7 +283,7 @@ export function SplitStudio({
             Save project
           </button>
           <button
-            className="button button-primary"
+            className="button button-write"
             type="button"
             disabled={!actions}
             onClick={() => {
