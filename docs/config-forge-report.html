@@ -1,0 +1,62 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Config Forge – What's Left</title><style>
+:root{--bg:#f7f4ef;--card:#fff;--ink:#222;--mut:#666;--acc:#b8642c;--hi:#c0392b;--md:#d68910;--lo:#2e86c1}
+body{margin:0;font:16px/1.6 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+main{max-width:920px;margin:auto;padding:2rem 1.2rem}h1{color:var(--acc);margin-bottom:.2rem}
+h2{border-bottom:2px solid var(--acc);padding-bottom:.3rem;margin-top:2.2rem}
+section,.card{background:var(--card);border-radius:10px;padding:1rem 1.4rem;box-shadow:0 1px 4px #0001;margin:1rem 0}
+code{background:#f0ebe4;padding:1px 5px;border-radius:4px;font-size:.88em}
+.tag{display:inline-block;font-size:.75em;font-weight:700;color:#fff;padding:1px 8px;border-radius:10px;margin-right:6px}
+.P1{background:var(--hi)}.P2{background:var(--md)}.P3{background:var(--lo)}
+table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #eee;padding:6px;text-align:left;vertical-align:top}
+.mut{color:var(--mut)}ol.start li{margin:.4rem 0;font-weight:500}</style></head><body><main>
+<h1>Config Forge — what's left to finish</h1><p class="mut">Repo: jimjamscott22/Config-Forge (main @ 3e89893) · reviewed Oct 19, 2026 via GitHub API, read-only</p>
+
+<h2>Overview</h2><section>
+<p>A local-first Linux desktop app for creating, importing, previewing, validating, translating, backing up and safely applying <b>Ghostty, Kitty and Alacritty</b> configs. It keeps comments, ordering and unsupported settings intact.</p>
+<p><b>Stack:</b> Tauri 2 (Rust, SQLite migrations) + React/TypeScript/Vite, Zustand store, Vitest + Testing Library, Playwright, ESLint/Prettier. Bundles target <code>deb</code> and <code>appimage</code> (<code>src-tauri/tauri.conf.json</code>).</p>
+<p>The roadmap in <code>docs/config-forge-implementation-plan.md</code> has 19 tasks. <code>docs/project-status.md</code> says Tasks 1–14 are done and development is <b>paused</b> before Task 15. <code>AGENTS.md</code> asks that this pause be respected and that new work start only on a new request.</p></section>
+
+<h2>What's done</h2><section><ul>
+<li>Structure-preserving parsers and writers for all three terminals, each with tests (<code>src/adapters/{ghostty,kitty,alacritty}/</code>), plus a registry and translation reports (<code>src/adapters/registry.ts</code>, <code>src/services/translation-service.ts</code>).</li>
+<li>Rust backend: terminal detection, atomic writes with read-back, backups, and native validation with timeouts (<code>src-tauri/src/filesystem/</code>, <code>process/native_validation.rs</code>). SQLite repositories for projects and snapshots, with retention (<code>src-tauri/src/db/</code>, <code>migrations/0001_initial.sql</code>).</li>
+<li>Frontend services: project, template, validation and safe-apply logic (generate → validate → diff → confirm → snapshot → backup → write → verify) in <code>src/services/apply-service.ts</code>.</li>
+<li>UI: Home screen, create/import drafts, a responsive Split Studio, visual controls and a mock terminal preview (<code>src/components/</code>).</li>
+<li>Tests: per the status doc, 111 Vitest, 32 Rust and 20 Playwright tests passed on Oct 6. I didn't re-run them.</li></ul></section>
+
+<h2>What's left to finish (prioritized)</h2>
+<div class="card"><span class="tag P1">P1</span><b>Task 17 – Desktop wiring and persistence (the app can't save or apply yet)</b>
+<ul><li><code>src-tauri/src/lib.rs</code> registers only 4 commands: <code>detect_terminals</code>, <code>create_config_backup</code>, <code>write_file_atomically</code> and <code>validate_candidate</code>. The app never sets up the database or app-data folders, even though the <code>db</code> module exists.</li>
+<li><code>src/services/tauri-client.ts</code> calls commands that don't exist in the backend: <code>create_project</code>, <code>save_project</code>, <code>get_project</code>, <code>list_projects</code>, <code>create_snapshot</code>, <code>get_snapshot</code>, <code>list_snapshots</code>, <code>read_text_file</code>, <code>export_config</code> and <code>apply_config</code>.</li>
+<li><code>apply_config</code> is written in <code>src-tauri/src/commands/files.rs</code> but isn't registered (the code comment says "scheduled for Task 17").</li>
+<li>The Save and Apply buttons are hard-disabled in <code>src/components/layout/SplitStudio.tsx</code>, which shows "Saving and applying are not available yet."</li>
+<li>Still to build (from the status doc): native candidate staging/cleanup for native validation, and UI for save/reopen, apply, export, translation and history/restore. <code>create_snapshot</code> must call <code>create_retained()</code>.</li></ul></div>
+<div class="card"><span class="tag P2">P2</span><b>Task 15 – Editable source and review</b><p>The Source tab only shows read-only generated text (<code>SplitStudio.tsx</code>, "Read only"). Still missing: editable source synced back to the model, a reviewed diff, grouped diagnostics and an unmapped-settings panel (<code>docs/project-status.md</code>).</p></div>
+<div class="card"><span class="tag P2">P2</span><b>Task 16 – Templates</b><p>Template logic exists in <code>src/services/template-service.ts</code>, but there's no built-in catalog, no picker, no personal-template CRUD and no JSON bundles. The Home screen shows an empty templates section.</p></div>
+<div class="card"><span class="tag P3">P3</span><b>Task 18 – Integration tests</b><p>The Playwright tests (<code>tests/e2e/*.spec.ts</code>) only cover session drafts. Nothing tests live persistence, apply or file writes end to end.</p></div>
+<div class="card"><span class="tag P3">P3</span><b>Task 19 – CI, docs and release</b><p>There's no <code>.github/workflows</code> directory in the tree, so no CI. No CONTRIBUTING or recovery/operator docs either. The deb/AppImage builds have never been verified, and the status doc says no dependency audit was re-run.</p></div>
+<div class="card"><span class="tag P3">P3</span><b>Housekeeping</b><p>Open PR #1 (ImgBot icon optimization, −49% icon size) and the unmerged <code>imgbot</code> branch: merge or close. No open issues.</p></div>
+
+<h2>Structure, performance &amp; security notes</h2><section><ul>
+<li><b>Security – unrestricted file write:</b> <code>write_file_atomically(target, candidate)</code> is exposed to the frontend and writes to any path (<code>commands/files.rs</code>). <code>create_config_backup</code> also accepts any <code>backup_root</code>. If the webview were ever compromised, it could overwrite any file the user owns. Limit writes to detected config paths and the app-data folder.</li>
+<li><b>Security – frontend chooses the binary:</b> <code>validate_candidate</code> takes <code>binary_path</code> from the frontend and runs it (<code>commands/validation.rs</code>). The arguments are chosen by the backend, but the executable isn't. The backend should resolve the binary from its own detection results.</li>
+<li>Good: there's a strict CSP (<code>tauri.conf.json</code>) and a minimal <code>capabilities/default.json</code>.</li>
+<li><b>Performance:</b> <code>SplitStudio</code> runs <code>adapter.generate()</code> and <code>validateProject()</code> on every render with no <code>useMemo</code>. This is fine for small configs but repeats work on every keystroke.</li>
+<li><b>Code smells:</b> the imports in <code>tauri-client.ts</code> are split in the middle of the file. <code>AppearanceControls/BehaviorControls/FontControls.tsx</code> are trivial wrappers. <code>@iarna/toml</code> causes build warnings and needs a <code>global</code> shim in Vite. Consider <code>smol-toml</code>.</li>
+<li><b>Missing tests:</b> nothing covers IPC end to end, the DB is never initialized at startup, there's no packaged-app smoke test, and no coverage threshold is set (<code>AGENTS.md</code>).</li></ul></section>
+
+<h2>High-impact improvements</h2>
+<div class="card"><b>Security</b> — Limit write and backup commands to an allowlist of paths, and resolve validator binaries on the backend. Then remove or restrict the raw <code>write_file_atomically</code> command once <code>apply_config</code> is wired up.</div>
+<div class="card"><b>Reliability / DevOps</b> — Add a GitHub Actions workflow that runs format, lint, typecheck, Vitest, Playwright, and cargo test/clippy, plus a <code>tauri build</code> job that uploads the deb/AppImage.</div>
+<div class="card"><b>Performance</b> — Memoize generate/validate per project revision, and debounce validation while typing in the coming source editor.</div>
+<div class="card"><b>UX</b> — One-click "Undo last apply" that restores the most recent backup, and live-reload hints (e.g. Kitty's <code>SIGUSR1</code> reload).</div>
+<div class="card"><b>Feature</b> — Import themes from community sources (base16 or iTerm2 color schemes) into the shared palette model.</div>
+<p class="mut">Per <code>AGENTS.md</code>, the owner wants to be consulted before new features are added.</p>
+
+<h2>Start here</h2><section><ol class="start">
+<li>Task 17: set up app-data and SQLite at startup, add and register the project/snapshot/read/export/<code>apply_config</code> commands, and enable Save/Apply in <code>SplitStudio.tsx</code>.</li>
+<li>Restrict file-write, backup and validator-binary IPC inputs (can be folded into Task 17).</li>
+<li>Task 15: editable source, diff review, grouped diagnostics.</li>
+<li>Task 16: template catalog, picker, personal templates.</li>
+<li>Tasks 18–19: integration tests, CI workflow, verified deb/AppImage, docs. Also resolve ImgBot PR #1.</li></ol></section>
+</main></body></html>
